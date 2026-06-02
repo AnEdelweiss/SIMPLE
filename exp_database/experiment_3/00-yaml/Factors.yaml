@@ -1,0 +1,15 @@
+Drough stress:
+  Levels: ['Dr_01', 'Dr_02']
+  Description: 'Medium drought stress (Dr_01), High drought stress (Dr_02). Water stress levels were determined and imposed according to Assimakopoulou et al., 2015, and Hoffman et al., 2021 for 14 days.'
+  #40% water holding capacity (WHC), to be reached gradually by the endpoint.
+  #25% WHC, to be reached gradually by the endpoint.
+  
+Salt stress:
+  Levels: ['Salt_01', 'Salt_02']
+  Description: 'Medium salt stress (Salt_01), High salt stress (Salt_02). Water stress levels were determined and imposed according to Assimakopoulou et al., 2015, and Hoffman et al., 2021 for 14 days.'
+  #irrigated daily with 100 mL of saline solution, to pile up 25 mM of NaCl by day and reach a final concentration of 350 mM
+  #Irrigated daily with 50 mL of saline solution to pile up 25 mM NaCl by day and reach a final concentration of 175 mM.
+  
+Optimal growth:
+  Levels: ['Control']
+  Description: '60% water holding capacity (WHC) with tap water.'

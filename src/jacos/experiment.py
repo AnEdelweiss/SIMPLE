@@ -1,0 +1,203 @@
+import sys
+import pandas as pd
+import opensilexClientToolsPython as silex
+from jacos.ui import console, Prompt, Panel
+
+def find_Exp(silex_API_Client):
+    Exp_Api = silex.ExperimentsApi(silex_API_Client)
+    name_Exp = Prompt.ask("[cyan]Quelle expérience recherchez-vous ?[/cyan]")
+    with console.status("[bold green]Recherche en cours..."):
+        exp_Src = Exp_Api.search_experiments(name=name_Exp)
+    if not exp_Src["result"]:
+        console.print("[bold red]Aucune expérience trouvée.[/bold red]")
+        return
+    exp_data = exp_Src["result"][0]
+    details = f"""
+    [bold cyan]URI:[/bold cyan] {exp_data.uri}
+    [bold cyan]Le nom:[/bold cyan] {exp_data.name}
+    [bold cyan]La description:[/bold cyan] {exp_data.description}
+    [bold cyan]Les objectifs:[/bold cyan] {exp_data.objective}
+    """
+    console.print(Panel(details, title="[bold]Détails de l'expérience[/bold]", border_style="green"))
+    Prompt.ask("Appuyez sur 'enter' pour revenir au menu")
+
+def create_experiment(document_miappe, choix_dossier, silex_API_Client):
+    console.print(f"[cyan]Fichier :[/cyan] {document_miappe}")
+    dataframe = pd.read_excel(document_miappe, sheet_name=2, header=1)
+    dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
+    
+    for index, row in dataframe.iterrows():
+        row_dict = row.dropna().to_dict()
+        NameExp_uri = {}
+        
+        def to_list(key):
+            val = row_dict.get(key)
+            return list(map(str.strip, val.split(","))) if val else []
+
+        NameExp = row_dict.get('name')
+        StartExp = row_dict.get('start_date')
+        EndExp = row_dict.get('end_date')
+        DescriptionExp = row_dict.get('description')
+        ObjectiveExp = row_dict.get('objective')
+        ls_Organisation = to_list('organisations')
+        ls_Projects = to_list('projects')
+        ls_Facilities = to_list('facilities')
+        ls_Scientific_Supervisors = to_list('scientific_supervisors')
+        ls_Technical_Supervisors = to_list('technical_supervisors')
+        ls_Groups = to_list('groups')
+        Is_Public = bool(row_dict.get('is_public'))
+        
+        Exp_Api = silex.ExperimentsApi(silex_API_Client)
+        Exp_Src = Exp_Api.search_experiments(name=NameExp)["result"]
+        
+        if Exp_Src:
+            NameExp_uri[NameExp] = Exp_Src[0].uri
+            console.print(f"[bold yellow]Une experience existe deja avec cet URI:[/bold yellow] {NameExp_uri[NameExp]}")
+            
+            Org_Api = silex.OrganizationsApi(silex_API_Client)
+            Facilities_uri = {}
+            for facility in ls_Facilities:
+                if not facility:
+                    console.print("[bold red]Organisation Missing[/bold red]")
+                    ls_Facilities = None
+                else:
+                    Org_Src = Org_Api.search_facilities(pattern=facility)["result"]
+                    if Org_Src:
+                        Facilities_uri.update({facility: Org_Src[0].uri})
+                        console.print(f"[cyan]{facility}[/cyan] URI: {Org_Src[0].uri}")
+                    else:
+                        console.print(f"[bold red]{facility}: Unknown Facility[/bold red]")
+        else:
+            if ObjectiveExp is not None:
+                console.print(f"[bold]Objective:[/bold] {ObjectiveExp[0:100]}...")
+            else:
+                sys.exit("Objective Missing")
+            
+            if StartExp is not None:
+                console.print(f"[bold]Start Date:[/bold] {StartExp}")
+            else:
+                sys.exit("Starting Date Missing")
+
+            console.print(f"[bold]Description:[/bold] {DescriptionExp[0:100]}...")
+
+            if EndExp is not None:
+                console.print(f"[bold]End Date:[/bold] {EndExp}")
+            else:
+                console.print("[bold yellow]Ending Date Missing[/bold yellow]")
+
+            console.print(f"[bold]Is_Public:[/bold] {Is_Public}")
+            console.print("[cyan]" + "_"*100 + "[/cyan]")
+
+            Org_Api = silex.OrganizationsApi(silex_API_Client)
+            Organisation_uri = {}
+            for organisation in ls_Organisation:
+                if organisation is None:
+                    console.print("[bold yellow]Organisation Missing[/bold yellow]")
+                    ls_Organisation = None
+                else:
+                    Org_Src = Org_Api.search_organizations(pattern=organisation)["result"]
+                    if Org_Src:
+                        Organisation_uri.update({organisation: Org_Src[0].uri})
+                        console.print(f"[green]{organisation}[/green] URI: {Org_Src[0].uri}")
+                        ls_Organisation = list(Organisation_uri.values())
+                    else:
+                        console.print(f"[bold red]{organisation}: Unknown Organisation[/bold red]")
+                        ls_Organisation = None
+
+            Sec_Api = silex.SecurityApi(silex_API_Client)
+            Groups_uri = {}
+            for group in ls_Groups:
+                if group is None:
+                    console.print("[bold yellow]Group Missing[/bold yellow]")
+                    ls_Groups = None
+                else:
+                    Sec_Src = Sec_Api.search_groups(name=group)["result"]
+                    if Sec_Src:
+                        Groups_uri.update({group: Sec_Src[0].uri})
+                        console.print(f"[green]{group}[/green] URI: {Sec_Src[0].uri}")
+                        ls_Groups = list(Groups_uri.values())
+                    else:
+                        console.print(f"[bold red]{group}: Unknown Group[/bold red]")
+                        ls_Groups = None
+
+            Proj_Api = silex.ProjectsApi(silex_API_Client)
+            Projects_uri = {}
+            for project in ls_Projects:
+                if project is None:
+                    console.print("[bold yellow]Project Missing[/bold yellow]")
+                    ls_Projects = None
+                else:
+                    Proj_Src = Proj_Api.search_projects(name=project)["result"]
+                    if Proj_Src:
+                        Projects_uri.update({project: Proj_Src[0].uri})
+                        console.print(f"[green]{project}[/green] URI: {Proj_Src[0].uri}")
+                        ls_Projects = list(Projects_uri.values())
+                    else:
+                        console.print(f"[bold red]{project}: Unknown Project[/bold red]")
+                        ls_Projects = None
+
+            Facilities_uri = {}
+            for facility in ls_Facilities:
+                if facility is None:
+                    console.print("[bold yellow]Organisation Missing[/bold yellow]")
+                    ls_Facilities = None
+                else:
+                    Org_Src = Org_Api.search_facilities(pattern=facility)["result"]
+                    if Org_Src:
+                        Facilities_uri.update({facility: Org_Src[0].uri})
+                        console.print(f"[green]{facility}[/green] URI: {Org_Src[0].uri}")
+                        ls_Facilities = list(Facilities_uri.values())
+                    else:
+                        console.print(f"[bold red]{facility}: Unknown Facility[/bold red]")
+                        ls_Facilities = None
+
+            Scientific_Supervisors_uri = {}
+            for scisup in ls_Scientific_Supervisors:
+                if scisup is None:
+                    console.print("[bold yellow]Scientific Supervisors Missing[/bold yellow]")
+                    ls_Scientific_Supervisors = None
+                else:
+                    Sec_Src = Sec_Api.search_persons(name=str(scisup))["result"]
+                    if Sec_Src:
+                        Scientific_Supervisors_uri.update({scisup: Sec_Src[0].uri})
+                        console.print(f"[green]{scisup}[/green] URI: {Sec_Src[0].uri}")
+                        ls_Scientific_Supervisors = list(Scientific_Supervisors_uri.values())
+                    else:
+                        console.print(f"[bold red]{scisup}: Unknown Scientific Supervisors[/bold red]")
+                        ls_Scientific_Supervisors = None
+
+            Technical_Supervisors_uri = {}
+            for techsup in ls_Technical_Supervisors:
+                if techsup is None:
+                    console.print("[bold yellow]Technical Supervisors Missing[/bold yellow]")
+                    ls_Technical_Supervisors = None
+                else:
+                    Sec_Src = Sec_Api.search_persons(name=techsup)["result"]
+                    if Sec_Src:
+                        Technical_Supervisors_uri.update({techsup: Sec_Src[0].uri})
+                        console.print(f"[green]{techsup}[/green] URI: {Sec_Src[0].uri}")
+                        ls_Technical_Supervisors = list(Technical_Supervisors_uri.values())
+                    else:
+                        console.print(f"[bold red]{techsup}: Unknown Technical Supervisors[/bold red]")
+                        ls_Technical_Supervisors = None
+
+            body = silex.ExperimentCreationDTO(
+                name=NameExp,
+                start_date=StartExp,
+                end_date=EndExp,
+                description=DescriptionExp,
+                objective=ObjectiveExp,
+                organisations=ls_Organisation,
+                projects=ls_Projects,
+                facilities=ls_Facilities,
+                scientific_supervisors=ls_Scientific_Supervisors,
+                technical_supervisors=ls_Technical_Supervisors,
+                groups=ls_Groups,
+                is_public=Is_Public)
+            Api_Resp = Exp_Api.create_experiment(body=body,)
+            console.print(f"[bold green]Experiment Creation:[/bold green] {Api_Resp['metadata']['datafiles']}")
+
+            Exp_Src = Exp_Api.search_experiments(name=NameExp)
+            NameExp_uri.update({NameExp: Exp_Src["result"][0].uri})
+            console.print(f"[bold cyan]Votre expérience {NameExp} porte l'URI:[/bold cyan] {NameExp_uri[NameExp]}")
+        return 1

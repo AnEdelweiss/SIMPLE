@@ -1,0 +1,46 @@
+[project]
+name = "jacos"
+version = "0.7.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "altgraph==0.17.5",
+    "certifi==2026.4.22",
+    "charset-normalizer==3.4.7",
+    "et-xmlfile==2.0.0",
+    "feedparser==6.0.12",
+    "futures==3.0.5",
+    "idna==3.13",
+    "ipaddress==1.0.23",
+    "lxml==6.1.0",
+    "markdown-it-py==4.2.0",
+    "mdurl==0.1.2",
+    "numpy==2.4.4",
+    "openpyxl==3.1.5",
+    "opensilexclienttoolspython",
+    "packaging==26.2",
+    "pandas==3.0.2",
+    "pygments==2.20.0",
+    "pyinstaller==6.20.0",
+    "pyinstaller-hooks-contrib==2026.5",
+    "python-dateutil==2.9.0.post0",
+    "pytz==2026.2",
+    "pyyaml==6.0.3",
+    "requests==2.33.1",
+    "rich==15.0.0",
+    "setuptools==82.0.1",
+    "sgmllib3k==1.0.0",
+    "six==1.17.0",
+    "tqdm==4.67.3",
+    "urllib3==2.6.3",
+]
+
+[project.scripts]
+jacos = "jacos.cli:main"
+
+[tool.uv]
+package = true
+
+[tool.uv.sources]
+opensilexclienttoolspython = { git = "https://github.com/OpenSILEX/opensilexClientToolsPython.git", rev = "1.5.0-hotfix" }

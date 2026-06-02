@@ -1,0 +1,16 @@
+#- Species: 
+#    bread wheat: vocabulary:Species
+#  Germplasm: 
+#    - DEMO_VAR_1: vocabulary:Variety
+#    - DEMO_VAR_2: vocabulary:Variety
+#    - DEMO_VAR_3: vocabulary:Variety
+
+- Species: 
+    Solanum lycopersicum: vocabulary:Species
+  Germplasm: 
+    - Micro-Tom:
+        rdf_type: vocabulary:Variety
+        is_public: true
+    - Tiny Tim:
+        rdf_type: vocabulary:Variety
+        is_public: false
