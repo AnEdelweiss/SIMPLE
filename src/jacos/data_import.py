@@ -1,10 +1,13 @@
 import sys
+import os
+from lxml import etree as ET
 import pandas as pd
 import opensilexClientToolsPython as silex
 from rich.progress import track
 from rich.table import Table
 from jacos.ui import console
 from datetime import datetime
+
 def create_factor(document_miappe, silex_API_Client):
     #getting experiment name
     dataframe = pd.read_excel(document_miappe, sheet_name=2, header=1)
@@ -115,7 +118,6 @@ def create_germplasm(document_miappe, silex_API_Client):
 
 def create_sci_obj(document_data,document_miappe,silex_API_Client):
 
-
     Factors_Levels_uri,_= create_factor(document_miappe, silex_API_Client)
 
     # EXCEL
@@ -127,10 +129,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     BioMat_Type=dataframe['scientifc_object_type'].dropna().iloc[0]
     BioMat_Type=list(map(str.strip, BioMat_Type.split(",")))
     #Gestion dates
-    desired_format = "%Y-%m-%dT%H:%M:%S%z"
     df_data = pd.read_excel(document_data)
-    df_data['Measuring Date'] = df_data['Measuring Date'].dt.date
-    df_data['Measuring Time'] = df_data['Measuring Time'].dt.tz_localize('UTC').dt.tz_convert('Europe/Helsinki').dt.strftime(desired_format)
     #on choisit de lire du début du doc jusqu'au PID (à adapter)
     PID = df_data['PID'].unique()[0]
     console.print(f'[bold cyan]PID found:[/bold cyan] {PID}')
@@ -169,9 +168,10 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     ScObj_uri = {}
     dtos_to_export = []
     dico_germplasm={}
+    created_sci_obj=0
     #on envoie pour chaque ligne de la df scobj(sans les duplicatas)
     for index, row in track(list(df_ScObj.iterrows()), description="[green]ScObj processing...[/green]"):
-        row["Tray ID"] = row["Tray ID"] + "_3"#test
+        row["Tray ID"] = row["Tray ID"] + ""#test
         ScObj_Src = ScObj_Api.search_scientific_objects(name=row["Tray ID"])["result"] # on vérifie si l'objet scientifique existe
         if ScObj_Src:
             ScObj_uri.update({row["Tray ID"]: ScObj_Src[0].uri})
@@ -216,6 +216,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
                 "obsUnitFactorValue": factor_level_value if factor_level_value else None,
                 "Date Import": datetime.today().strftime('%Y-%m-%d %H:%M'),
             })
+            created_sci_obj+=1
     #écriture des metadata des objets scientifiques sur le excel 
     if dtos_to_export:
         fichier_excel = "exp_database/test_JACOS/output/Test_OSC_x_MIAPPE.xlsx"
@@ -225,5 +226,5 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
         with pd.ExcelWriter(fichier_excel, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
             df_final.to_excel(writer, sheet_name="scientific object", index=False)
         console.print("[bold green]Excel mis à jour/créé avec succès.[/bold green]")
-    console.print("[bold green]Opération terminée.[/bold green]")
-
+    console.print(f"[bold green]Opération terminée :{len(ScObj_uri)-created_sci_obj} trouvés,{created_sci_obj} créés. [/bold green]")
+    return ScObj_uri

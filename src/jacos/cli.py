@@ -9,6 +9,7 @@ from jacos.ui import console, BANNER, MENU_CREATION, menu, choix_repertoire_trav
 from jacos.auth import INSTANCES, connexion, is_connected
 from jacos.experiment import find_Exp, create_experiment
 from jacos.data_import import create_factor, create_germplasm, create_sci_obj
+from jacos.images_import import create_images
 
 def main():
     console.print(BANNER)
@@ -103,21 +104,13 @@ def main():
                             sci_obj = create_sci_obj(document_data,document_miappe,silex_API_Client)
 
                         elif choix_creation == 5:
-                            wd_img = os.path.join(wd_experience)
-                            ls_files = []
-                            for (root, dirs, files) in os.walk(wd_img):
-                                for filename in files:
-                                    if filename.endswith(".png"):
-                                        ls_files.append(os.path.join(root, filename))
-
-                            ls_fec = [x for x in ls_files if "_FishEyeCorrected" in x]
-                            ls_fem = [x for x in ls_files if "_FishEyeMasked" in x ]
-                            console.print(f'[bold cyan]Numbers of FEC Img:[/bold cyan] {len(ls_fec)}\n[bold cyan]Numbers of FEM:[/bold cyan] {len(ls_fem)}') 
+                            create_images(wd_experience,document_data,document_miappe,silex_API_Client)
+                            
                         elif choix_creation == 6:
                             create_experiment(document_miappe, choix_dossier, silex_API_Client)
                             create_germplasm(document_miappe, silex_API_Client)
                             create_factor(document_miappe, silex_API_Client)
-                            create_sci_obj(Factors_Levels_uri, Germplasms_uri, wd_experience, choix_dossier, silex_API_Client,document_miappe)
+                            create_sci_obj(document_data,document_miappe,silex_API_Client)
                             break
                         elif choix_creation == 9:
                             break
