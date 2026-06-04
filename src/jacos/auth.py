@@ -38,7 +38,7 @@ def connexion(login, silex_API_Client) -> bool:
             if "HTTP response body:" in error_str:
                 json_part = error_str.split("HTTP response body:")[1].strip() #on garde seulement le json
                 error_data = json.loads(json_part)
-                Prompt.ask(f"[red]{error_data["result"]["message"]}[/red]") # j'affiche seulement le lessage d'erreur renvoyé ("utilisateur inconnu etc..")
+                Prompt.ask(f"[red]{error_data['result']['message']}[/red]") # j'affiche seulement le lessage d'erreur renvoyé ("utilisateur inconnu etc..")
             else:
                 Prompt.ask(f"[red]Erreur brute : {error_str}[/red]") # si je reçois qqc de bizarre
             return False

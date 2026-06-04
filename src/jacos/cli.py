@@ -100,7 +100,7 @@ def main():
                             Factors_Levels_uri, _ = create_factor(document_miappe, silex_API_Client)
 
                         elif choix_creation == 4:
-                            sci_obj = create_sci_obj(Factors_Levels_uri, Germplasms_uri, document_data,document_miappe,silex_API_Client)
+                            sci_obj = create_sci_obj(document_data,document_miappe,silex_API_Client)
 
                         elif choix_creation == 5:
                             wd_img = os.path.join(wd_experience)

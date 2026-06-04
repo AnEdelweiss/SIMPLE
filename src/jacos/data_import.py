@@ -1,19 +1,15 @@
-import os
 import sys
-import yaml
 import pandas as pd
 import opensilexClientToolsPython as silex
 from rich.progress import track
 from rich.table import Table
 from jacos.ui import console
-
+from datetime import datetime
 def create_factor(document_miappe, silex_API_Client):
     #getting experiment name
     dataframe = pd.read_excel(document_miappe, sheet_name=2, header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
-    for index, row in dataframe.iterrows():
-        row_dict = row.dropna().to_dict()
-        NameExp = row_dict.get('name')
+    NameExp = dataframe['name'].dropna().iloc[0]
 
     #getting factors
     console.print(f"[cyan]Fichier :[/cyan] {document_miappe}")
@@ -49,11 +45,21 @@ def create_factor(document_miappe, silex_API_Client):
         Fac_Get = Fac_Api.get_factor_levels(uri=fac_uri)["result"]
         for lvl in Fac_Get:
             Factors_Levels_uri[lvl.name] = lvl.uri
-            
+
+    table = Table(title="Facteurs", show_header=False)
+    table.add_column("Index", style="cyan")
+    table.add_column("Nom", style="green")
     for factor in Factors_uri:
-        console.print(f"[bold cyan]{factor}[/bold cyan] URI: {Factors_uri[factor]}")
+        table.add_row(factor, Factors_uri[factor])
+    console.print(table)
+
+    table = Table(title="Niveau facteurs", show_header=False)
+    table.add_column("Index", style="cyan")
+    table.add_column("Nom", style="green")
     for lvl in Factors_Levels_uri:
-        console.print(f"[bold yellow]{lvl}[/bold yellow] URI: {Factors_Levels_uri[lvl]}")
+        table.add_row(lvl,Factors_Levels_uri[lvl])
+    console.print(table)
+
     return Factors_Levels_uri, Factors_uri
 
 def create_germplasm(document_miappe, silex_API_Client):
@@ -91,74 +97,63 @@ def create_germplasm(document_miappe, silex_API_Client):
                 Germ_Src = Germ_Api.search_germplasm(name=f"^{germ_name}$", rdf_type=germ_type_germplasm)["result"]
             Germplasms_uri[germ_name] = Germ_Src[0].uri
 
-    # for germplasm in Germplasms_uri:
-    #     console.print(f"[bold cyan]{germplasm}[/bold cyan] URI: {Germplasms_uri[germplasm]}")
-    # for species in Species_uri:
-    #     console.print(f"[bold yellow]{species}[/bold yellow] URI: {Species_uri[species]}")
-
-
     table = Table(title="Espèces", show_header=False)
     table.add_column("Index", style="cyan")
     table.add_column("Nom", style="green")
     for germplasm in Germplasms_uri:
-        table.add_row(str(germplasm), str(Germplasms_uri[germplasm]))
+        table.add_row(germplasm, Germplasms_uri[germplasm])
     console.print(table)
 
     table = Table(title="Variétés", show_header=False)
     table.add_column("Index", style="cyan")
     table.add_column("Nom", style="green")
     for species in Species_uri:
-        table.add_row(str(species),str(Species_uri[species]))
+        table.add_row((species),Species_uri[species])
     console.print(table)
 
     return Germplasms_uri, Species_uri
 
-def create_sci_obj(Factors_Levels_uri, Germplasms_uri, document_data,document_miappe,silex_API_Client):
+def create_sci_obj(document_data,document_miappe,silex_API_Client):
+
+
+    Factors_Levels_uri,_= create_factor(document_miappe, silex_API_Client)
+
     # EXCEL
     dataframe = pd.read_excel(document_miappe, sheet_name=2, header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
-    
-    for index, row in dataframe.iterrows():
-        row_dict = row.dropna().to_dict()
-        NameExp_uri = {}
-
-        def to_list(key):
-            val = row_dict.get(key)
-            return list(map(str.strip, val.split(","))) if val else []
-
-        NameExp = row_dict.get('name')
-        StartExp = row_dict.get('start_date')
-        EndExp = row_dict.get('end_date')
-        BioMat_Type=to_list('scientifc_object_type')
-    # EXCEL
-
+    NameExp = dataframe['name'].dropna().iloc[0]
+    StartExp = dataframe['start_date'].dropna().iloc[0]
+    EndExp = dataframe['end_date'].dropna().iloc[0]
+    BioMat_Type=dataframe['scientifc_object_type'].dropna().iloc[0]
+    BioMat_Type=list(map(str.strip, BioMat_Type.split(",")))
+    #Gestion dates
     desired_format = "%Y-%m-%dT%H:%M:%S%z"
-
-    df_data = pd.read_excel(os.path.join(NameExp, document_data))
+    df_data = pd.read_excel(document_data)
     df_data['Measuring Date'] = df_data['Measuring Date'].dt.date
     df_data['Measuring Time'] = df_data['Measuring Time'].dt.tz_localize('UTC').dt.tz_convert('Europe/Helsinki').dt.strftime(desired_format)
-    
+    #on choisit de lire du début du doc jusqu'au PID (à adapter)
     PID = df_data['PID'].unique()[0]
     console.print(f'[bold cyan]PID found:[/bold cyan] {PID}')
-
+    #on garde seulement les tray id uniques
     df_ScObj = df_data.loc[:, "Tray ID":"PID"].drop_duplicates()
     Relations_Gen = []
-
+    #on cherche si l'expérience éxiste pour en extraire l'uri
     Exp_Src = silex.ExperimentsApi(silex_API_Client).search_experiments(name=NameExp)
+    if Exp_Src is None:
+        console.print("[bold red]l'expérience n'éxiste pas, veuillez vérifier le nom.[/bold red]")
+        sys.exit()
     NameExp_uri = {NameExp: Exp_Src["result"][0].uri}
-
+    #on check les différents points qu'on veut garder pour les metadata des sciobj (start date,end date,material type)
     if StartExp is not None:
         relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasCreationDate", value=StartExp)
         Relations_Gen.append(relation_temp)
     else:
         console.print('[bold yellow]Start Date Missing[/bold yellow]')
-
     if EndExp is not None:
         relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasDestructionDate", value=EndExp)
         Relations_Gen.append(relation_temp)
     else:
         console.print('[bold yellow]End Date Missing[/bold yellow]')
-
     if not BioMat_Type:
         sys.exit("Scientific Object RDF Type Missing")
     else:
@@ -169,28 +164,44 @@ def create_sci_obj(Factors_Levels_uri, Germplasms_uri, document_data,document_mi
                 rdf_type = Onto_Src[0].children[0].uri
             else:
                 sys.exit("Scientific Object RDF Type Unknown")
-
+    #on initialise des variables, dont celle qui servira à écrire le excel
     ScObj_Api = silex.ScientificObjectsApi(silex_API_Client)
     ScObj_uri = {}
     dtos_to_export = []
-    
+    dico_germplasm={}
+    #on envoie pour chaque ligne de la df scobj(sans les duplicatas)
     for index, row in track(list(df_ScObj.iterrows()), description="[green]ScObj processing...[/green]"):
-        row["Tray ID"] = row["Tray ID"] + "test_3"
-        ScObj_Src = ScObj_Api.search_scientific_objects(name=row["Tray ID"])["result"]
+        row["Tray ID"] = row["Tray ID"] + "_3"#test
+        ScObj_Src = ScObj_Api.search_scientific_objects(name=row["Tray ID"])["result"] # on vérifie si l'objet scientifique existe
         if ScObj_Src:
             ScObj_uri.update({row["Tray ID"]: ScObj_Src[0].uri})
         else:
             Relations_ScObj = []
-            if Germplasms_uri:
-                relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasGermplasm", value=Germplasms_uri.get(row["Germplasm"]))
-                Relations_ScObj.append(relation_temp)
-
+            #ici on à la logique de vérification des germplasmes dans les objets scientifiques, on vérifie si il est dans la liste des germplasmes connus, et si oui on prends son uri
+            if row["Germplasm"] is not None:
+                if row["Germplasm"] not in dico_germplasm.keys():
+                    Germ_Src = silex.GermplasmApi(silex_API_Client).search_germplasm(name=f"^{row["Germplasm"]}$")["result"]
+                    if Germ_Src:
+                        dico_germplasm[row["Germplasm"]] = Germ_Src[0].uri
+                        germplasm_value=dico_germplasm[row["Germplasm"]]
+                        relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasGermplasm", value=germplasm_value)
+                        Relations_ScObj.append(relation_temp)
+                        console.print(f"[bold green]  Germplasme [cyan]{row['Germplasm']}[/cyan] trouvé[/bold green]")
+                    else:
+                        console.print(f"[bold red] Germplasme [cyan]{row['Germplasm']}[/cyan] introuvable, vérifiez l'orthographe/la création [/bold red]")
+                        console.print("[bold red] Fermeture du client [/bold red]")
+                        sys.exit()
+                else:
+                    germplasm_value=dico_germplasm[row["Germplasm"]]
+                    relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasGermplasm", value=germplasm_value)
+                    Relations_ScObj.append(relation_temp)
+            #on récupère les uri des niveaux de facteur
             if Factors_Levels_uri:
-                relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasFactorLevel", value=Factors_Levels_uri.get(row["Factor Level"]))
+                factor_level_value=Factors_Levels_uri.get(row["Factor Level"])
+                relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasFactorLevel", value=factor_level_value)
                 Relations_ScObj.append(relation_temp)
-                
+            #on concatène les infos générales et les uri des germplasmes/facteurs puis on envoie le body et on le stock dans un dictionnaire
             Relations = Relations_Gen + Relations_ScObj
-            
             body = silex.ScientificObjectCreationDTO(name=row["Tray ID"], rdf_type=rdf_type, relations=Relations, experiment=NameExp_uri[NameExp])
             ScObj_Api.create_scientific_object(body,)
             ScObj_Src = ScObj_Api.search_scientific_objects(name=row["Tray ID"])["result"]
@@ -201,19 +212,18 @@ def create_sci_obj(Factors_Levels_uri, Germplasms_uri, document_data,document_mi
                 "obsUnitType": body.rdf_type,
                 "obsUnitId": ScObj_Src[0].uri,
                 "externalId": body.name,
-                "biologicalMaterialId": Relations_ScObj[0] if len(Relations_ScObj) > 0 else None,
-                "obsUnitFactorValue": Relations_ScObj[1] if len(Relations_ScObj) > 1 else None,
+                "biologicalMaterialId": germplasm_value if germplasm_value else None,
+                "obsUnitFactorValue": factor_level_value if factor_level_value else None,
+                "Date Import": datetime.today().strftime('%Y-%m-%d %H:%M'),
             })
-
+    #écriture des metadata des objets scientifiques sur le excel 
     if dtos_to_export:
         fichier_excel = "exp_database/test_JACOS/output/Test_OSC_x_MIAPPE.xlsx"
         df_export = pd.DataFrame(dtos_to_export)
         df_precedent = pd.read_excel(fichier_excel, sheet_name="scientific object")
         df_final = pd.concat([df_precedent, df_export])
-
         with pd.ExcelWriter(fichier_excel, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
             df_final.to_excel(writer, sheet_name="scientific object", index=False)
-            
         console.print("[bold green]Excel mis à jour/créé avec succès.[/bold green]")
-
     console.print("[bold green]Opération terminée.[/bold green]")
+
