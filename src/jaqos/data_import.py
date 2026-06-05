@@ -117,10 +117,7 @@ def create_germplasm(document_miappe, silex_API_Client):
     return Germplasms_uri, Species_uri
 
 def create_sci_obj(document_data,document_miappe,silex_API_Client):
-
-    Factors_Levels_uri,_= create_factor(document_miappe, silex_API_Client)
-
-    # EXCEL
+    # Récupération du excel page experiment
     dataframe = pd.read_excel(document_miappe, sheet_name=2, header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
     NameExp = dataframe['name'].dropna().iloc[0]
@@ -128,9 +125,8 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     EndExp = dataframe['end_date'].dropna().iloc[0]
     BioMat_Type=dataframe['scientifc_object_type'].dropna().iloc[0]
     BioMat_Type=list(map(str.strip, BioMat_Type.split(",")))
-    #Gestion dates
+    #Ici on récupère les données tabulaires pour créer les objets scientifiques. on choisit de lire du début du doc jusqu'au PID (à adapter)
     df_data = pd.read_excel(document_data)
-    #on choisit de lire du début du doc jusqu'au PID (à adapter)
     PID = df_data['PID'].unique()[0]
     console.print(f'[bold cyan]PID found:[/bold cyan] {PID}')
     #on garde seulement les tray id uniques
@@ -138,10 +134,23 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     Relations_Gen = []
     #on cherche si l'expérience éxiste pour en extraire l'uri
     Exp_Src = silex.ExperimentsApi(silex_API_Client).search_experiments(name=NameExp)
+    NameExp_uri = {NameExp: Exp_Src["result"][0].uri}
+    #Récupérer un dictionnaire de facteurs levels pour cette experience
+    api_response = silex.ExperimentsApi(silex_API_Client).get_available_factors(Exp_Src["result"][0].uri, )
+    #print(api_response["result"])
+    if api_response["result"] is not None:
+        Factors_Levels_uri={}
+        for resultat in api_response["result"]:
+            for factor_level in resultat.levels :
+                Factors_Levels_uri[factor_level.name]=factor_level.uri
+        #console.print(f"facteurs liés à l'experience trouvés : {Factors_Levels_uri}")
+    else :
+        Factors_Levels_uri,_= create_factor(document_miappe, silex_API_Client)
+
+    # création des relations
     if Exp_Src is None:
         console.print("[bold red]l'expérience n'éxiste pas, veuillez vérifier le nom.[/bold red]")
         sys.exit()
-    NameExp_uri = {NameExp: Exp_Src["result"][0].uri}
     #on check les différents points qu'on veut garder pour les metadata des sciobj (start date,end date,material type)
     if StartExp is not None:
         relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasCreationDate", value=StartExp)
@@ -171,7 +180,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     created_sci_obj=0
     #on envoie pour chaque ligne de la df scobj(sans les duplicatas)
     for index, row in track(list(df_ScObj.iterrows()), description="[green]ScObj processing...[/green]"):
-        row["Tray ID"] = row["Tray ID"] + ""#test
+        row["Tray ID"] = row["Tray ID"] + "_19"#test
         ScObj_Src = ScObj_Api.search_scientific_objects(name=row["Tray ID"])["result"] # on vérifie si l'objet scientifique existe
         if ScObj_Src:
             ScObj_uri.update({row["Tray ID"]: ScObj_Src[0].uri})
@@ -196,10 +205,23 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
                     relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasGermplasm", value=germplasm_value)
                     Relations_ScObj.append(relation_temp)
             #on récupère les uri des niveaux de facteur
-            if Factors_Levels_uri:
-                factor_level_value=Factors_Levels_uri.get(row["Factor Level"])
-                relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasFactorLevel", value=factor_level_value)
-                Relations_ScObj.append(relation_temp)
+
+            if Factors_Levels_uri and row["Factor Level"] is not None:
+                if row["Factor Level"] not in Factors_Levels_uri.keys():
+                    console.print("[bold red]\nle niveau de facteur ne corresponds pas.\n Lancement de la recherche de facteurs\n[/bold red]")
+                    Factors_Levels_uri,_= create_factor(document_miappe, silex_API_Client)
+                    factor_level_value=Factors_Levels_uri.get(row["Factor Level"])
+                    relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasFactorLevel", value=factor_level_value)
+                    Relations_ScObj.append(relation_temp)
+                    if row["Factor Level"] not in Factors_Levels_uri.keys():
+                        console.print(f"[bold red] Factor level [cyan]{row['Factor Level']}[/cyan] introuvable, vérifiez l'orthographe/la création [/bold red]")
+                        console.print("[bold red] Fermeture du client [/bold red]")
+                        sys.exit()
+                else :
+                    factor_level_value=Factors_Levels_uri.get(row["Factor Level"])
+                    relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasFactorLevel", value=factor_level_value)
+                    Relations_ScObj.append(relation_temp)
+
             #on concatène les infos générales et les uri des germplasmes/facteurs puis on envoie le body et on le stock dans un dictionnaire
             Relations = Relations_Gen + Relations_ScObj
             body = silex.ScientificObjectCreationDTO(name=row["Tray ID"], rdf_type=rdf_type, relations=Relations, experiment=NameExp_uri[NameExp])
@@ -219,7 +241,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
             created_sci_obj+=1
     #écriture des metadata des objets scientifiques sur le excel 
     if dtos_to_export:
-        fichier_excel = "exp_database/test_jaqos/output/Test_OSC_x_MIAPPE.xlsx"
+        fichier_excel = "/home/edelweiss/Documents/JAQOS/exp_database/test_JACOS/output/Test_OSC_x_MIAPPE.xlsx"#A cahnger pour ne pas le hardcode..
         df_export = pd.DataFrame(dtos_to_export)
         df_precedent = pd.read_excel(fichier_excel, sheet_name="scientific object")
         df_final = pd.concat([df_precedent, df_export])
