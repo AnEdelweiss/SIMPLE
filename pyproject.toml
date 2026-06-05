@@ -1,5 +1,5 @@
 [project]
-name = "jacos"
+name = "jaqos"
 version = "0.7.0"
 description = "Add your description here"
 readme = "README.md"
@@ -37,10 +37,15 @@ dependencies = [
 ]
 
 [project.scripts]
-jacos = "jacos.cli:main"
+jacos = "jaqos.cli:main"
 
 [tool.uv]
 package = true
 
 [tool.uv.sources]
 opensilexclienttoolspython = { git = "https://github.com/OpenSILEX/opensilexClientToolsPython.git", rev = "1.5.0-hotfix" }
+
+[tool.uv.workspace]
+members = [
+    "jaqos",
+]

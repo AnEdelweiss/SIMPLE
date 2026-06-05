@@ -1,5 +1,5 @@
 import opensilexClientToolsPython as silex
-from jacos.ui import console, Prompt
+from jaqos.ui import console, Prompt
 import json
 
 # Initiatialisation des différentes instances

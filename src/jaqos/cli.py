@@ -5,11 +5,11 @@ from rich.prompt import Prompt, IntPrompt
 from rich.panel import Panel
 from rich.table import Table
 
-from jacos.ui import console, BANNER, MENU_CREATION, menu, choix_repertoire_travail
-from jacos.auth import INSTANCES, connexion, is_connected
-from jacos.experiment import find_Exp, create_experiment
-from jacos.data_import import create_factor, create_germplasm, create_sci_obj
-from jacos.images_import import create_images
+from jaqos.ui import console, BANNER, MENU_CREATION, menu, choix_repertoire_travail
+from jaqos.auth import INSTANCES, connexion, is_connected
+from jaqos.experiment import find_Exp, create_experiment
+from jaqos.data_import import create_factor, create_germplasm, create_sci_obj
+from jaqos.images_import import create_images
 
 def main():
     console.print(BANNER)

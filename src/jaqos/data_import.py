@@ -5,7 +5,7 @@ import pandas as pd
 import opensilexClientToolsPython as silex
 from rich.progress import track
 from rich.table import Table
-from jacos.ui import console
+from jaqos.ui import console
 from datetime import datetime
 
 def create_factor(document_miappe, silex_API_Client):
@@ -219,7 +219,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
             created_sci_obj+=1
     #écriture des metadata des objets scientifiques sur le excel 
     if dtos_to_export:
-        fichier_excel = "exp_database/test_JACOS/output/Test_OSC_x_MIAPPE.xlsx"
+        fichier_excel = "exp_database/test_jaqos/output/Test_OSC_x_MIAPPE.xlsx"
         df_export = pd.DataFrame(dtos_to_export)
         df_precedent = pd.read_excel(fichier_excel, sheet_name="scientific object")
         df_final = pd.concat([df_precedent, df_export])

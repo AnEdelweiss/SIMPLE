@@ -1,5 +1,5 @@
 import os
-from jacos.__init__ import __version__
+from jaqos.__init__ import __version__
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, IntPrompt

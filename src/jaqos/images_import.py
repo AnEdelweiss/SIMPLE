@@ -6,8 +6,8 @@ import pandas as pd
 import opensilexClientToolsPython as silex
 from rich.progress import track
 from rich.table import Table
-from jacos.ui import console
-from jacos.data_import import create_sci_obj
+from jaqos.ui import console
+from jaqos.data_import import create_sci_obj
 import datetime
 from rich.prompt import Prompt
 

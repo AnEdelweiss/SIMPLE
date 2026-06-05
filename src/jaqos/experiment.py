@@ -1,7 +1,7 @@
 import sys
 import pandas as pd
 import opensilexClientToolsPython as silex
-from jacos.ui import console, Prompt, Panel
+from jaqos.ui import console, Prompt, Panel
 
 def find_Exp(silex_API_Client):
     Exp_Api = silex.ExperimentsApi(silex_API_Client)
