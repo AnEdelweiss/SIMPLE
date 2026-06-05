@@ -18,8 +18,8 @@ def deconnexion(silex_API_Client) -> bool:
             console.print("[bold green]Déconnexion réussie.[/bold green]")
         except Exception as e:
             console.print(f"[bold red]Note: Erreur lors de la déconnexion : {e}[/bold red]")
-            return 0
-    return 1
+            return False
+    return True
 #Check rapide de la connexion
 def is_connected(silex_API_Client) -> bool:
     if silex_API_Client is not None and 'Authorization' in silex_API_Client.default_headers:
