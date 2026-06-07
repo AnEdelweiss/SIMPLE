@@ -55,5 +55,5 @@ Everything should work !
 - ~~English translation.~~
 - ~~Photo upploadng.~~
 - Data upploading.
-- Generalization.
+- Generalization : (changing the hardcoded provenances and PID, create the output document and the output folder in the experiment directory etc...)
 - Automatization(?)
