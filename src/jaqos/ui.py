@@ -16,7 +16,7 @@ BANNER = f"""[green]
 ⠀⣼⡟⠀⠀⠀⠀⠀⠀⣰⣿⠃⠀⠀⠀⠀⢻⣷⡀⠀⠀⠉⠛⢿⣶⠀⠀⠀⢻⣧⠀
 ⣸⡿⠀⠀⠀⠀⠀⠀⣴⡿⠁⠀⠀⠀⠀⠀⠀⢻⣷⡀⠀⠀⣴⣿⣿⡆⠀⠀⠀⢿⡇
 ⣿⡇⠀⠀⠀⠀⢀⣾⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣷⣠⣾⠟⠁⢿⣇⠀⠀⠀⢸⣿
-⣿⡁⠀⠀⠀⢠⣿⢏⣀⣀⣀⣠⣤⣤⣤⣤⣶⣶⣶⣿⣿⣧⣤⣀⣸⣿⠀⠀⠀⢸⣿    [cyan]⊹₊˚‧︵‿₊୨ [bold green]Bienvenue sur OpenSilexScript [cyan]୧₊‿︵‧˚₊⊹[green]
+⣿⡁⠀⠀⠀⢠⣿⢏⣀⣀⣀⣠⣤⣤⣤⣤⣶⣶⣶⣿⣿⣧⣤⣀⣸⣿⠀⠀⠀⢸⣿    [cyan]⊹₊˚‧︵‿₊୨ [bold green]Welcome on JAQOS[cyan]୧₊‿︵‧˚₊⊹[green]
 ⣿⡇⠀⠀⠀⢿⣿⣿⣿⣟⣛⠋⠉⠉⠉⠉⠀⠀⠀⢸⣿⠈⠉⠛⢻⣿⠀⠀⠀⢸⣿
 ⢹⣷⠀⠀⠀⠈⢿⣯⠉⠙⠛⠿⢷⣶⣤⣄⣀⠀⠀⢸⣿⠀⠀⣰⡿⠃⠀⠀⠀⣾⡏
 ⠀⢿⣧⠀⠀⠀⠈⢿⣧⠀⠀⠀⠀⠀⠉⠙⠛⠿⣷⣾⣿⠀⣴⡿⠁⠀⠀⠀⣼⡿⠀
@@ -26,25 +26,25 @@ BANNER = f"""[green]
 ⠀⠀⠀⠀⠀⠀⠀⠈⠙⠻⠿⣷⣶⣦⣤⣤⣤⣴⣶⣾⠿⠟⠋⠁⠀⠀⠀⠀⠀⠀⠀         
 
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-  \\[+] Script pour la création & modification de données sur Opensilex
-  [cyan]\\[+] Veuillez sélectionner une des options en tapant un numéro puis 'enter'
-  [yellow]\\[+] Connectez-vous pour commencer[/yellow]
-
-    [white]VERSION[/white]    = [bold green]{__version__} MIAPPE & RICH[/bold green]
+  \\[+] JAQOS A Quick Opensilex Script
+  [cyan]\\[+] You can chose an option by typing the associated number and pressing 'enter'
+  [yellow]\\[+] You will be logged as a guest by default, you can log in to change user.[/yellow]
+  [green]\\[+] Please read the README.md file available on the github for guidance.
+  
+    [white]VERSION[/white]    = [bold green]{__version__} MIAPPE & RICH & ENGLISH[/bold green]
   [white]VERSION-PHIS[/white] = [bold green]1.4[/bold green]
     [white]Made By[/white]    = [bold green]•┈••✦ Edelweiss ✦••┈•[/bold green]
 """
 
 MENU_CREATION = """
-[bold]Veuillez suivre l'ordre de création (ou compléter en fonction de ceux déjà existants)[/bold]
-  [red]\\[1][/red] Je souhaite créer une expérience.
-  [green]\\[2][/green] Je souhaite créer un/des germplasms.
-  [cyan]\\[3][/cyan] Je souhaite créer des facteurs.
-  [yellow]\\[4][/yellow] Je souhaite créer des objets scientifiques.
-  [magenta]\\[5][/magenta] Je souhaite importer des images.
-  [green]\\[6][/green] Toutes les options ci-dessus.
-  [green]\\[6][/green] Importer des données.
-  [red]\\[9][/red] Je souhaite retourner au menu de base.
+  [red]\\[1][/red] I want to create an experiment. 
+  [green]\\[2][/green] I want to create one or more germplasms.
+  [cyan]\\[3][/cyan] I want to create factors with factor levels for this experiment.
+  [yellow]\\[4][/yellow] I want to create scientific objects for this experiment.
+  [magenta]\\[5][/magenta] I want to import images. 
+  [green]\\[6][/green] All of the above.
+  [green]\\[6][/green] Import tabular data.
+  [red]\\[9][/red] I want to return to the main menu...
 """
 
 def menu(etat):
@@ -60,26 +60,26 @@ def menu(etat):
     ⠀⠈⠳⣄⡀⠘⣧⣴⣞⣋⣁⣀⣿⠋⢀⣠⠞⠁⠀
     ⠀⠀⠀⠈⠙⠶⢦⣤⣄⣀⣠⣤⡴⠶⠛⠁⠀
     ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/green]
-    [red]\\[1][/red] Je souhaite me connecter.
-    [green]\\[2][/green] Je souhaite chercher une expérience.
-    [cyan]\\[3][/cyan] Je souhaite importer des données...
-    [yellow]\\[4][/yellow] Je souhaite Importer des images.
-    [magenta]\\[5][/magenta] Je souhaite ajouter/modifier des données.
-    [blue]\\[6][/blue] Ipsum.
-    [red]\\[7][/red] Dolor.
-    [green]\\[8][/green] Sit Amet.
-    [cyan]\\[9][/cyan] Je souhaite quitter le client.
+    [red]\\[1][/red] Log in.
+    [green]\\[2][/green] Look up experiment info.
+    [cyan]\\[3][/cyan] I want to create experiment/factors/scientific object...
+    [yellow]\\[4][/yellow] Lorem.
+    [magenta]\\[5][/magenta] Ipsum.
+    [blue]\\[6][/blue] Dolor.
+    [red]\\[7][/red] Sit.
+    [green]\\[8][/green] Amet.
+    [cyan]\\[9][/cyan] Quit the client.
     """
-    console.print(Panel(menu_text, title="[bold]Menu Principal[/bold]", border_style="cyan", expand=False))
+    console.print(Panel(menu_text, title="[bold]Main Menu[/bold]", border_style="cyan", expand=False))
 
 def choix_repertoire_travail():
-    working_dir_path = Prompt.ask("[cyan]Veuillez coller le chemin d'accès COMPLET qui mène au répertoire parent de vos experiences (ctrl+maj+V dans la console)[/cyan]\n")
+    working_dir_path = Prompt.ask("[cyan]Please paste the complete ABSOLUTE file path to the parent directory of your experiments.[/cyan]\n[magenta](use ctrl+maj+V when pasting in the console)[/magenta]\n")
     working_dir = os.path.normpath(rf"{working_dir_path}")
     
     liste_dossiers = os.listdir(working_dir)
     nombre = len(liste_dossiers)
     
-    table = Table(title="Dossiers trouvés", header_style="bold magenta")
+    table = Table(title="Files found !", header_style="bold magenta")
     table.add_column("Index", style="cyan")
     table.add_column("Nom", style="green")
     for index, nom in enumerate(liste_dossiers):
@@ -87,16 +87,16 @@ def choix_repertoire_travail():
     console.print(table)
     
     while True:
-        choix_exp = IntPrompt.ask(f"[green]Choisissez le dossier qui contient votre expérience (0-{nombre-1})[/green]")
+        choix_exp = IntPrompt.ask(f"[green]Chose the file containing your experiment : (0-{nombre-1})[/green]")
         if 0 <= choix_exp < nombre:
             choix_dossier = liste_dossiers[choix_exp]
             wd_experience = os.path.join(working_dir, choix_dossier)
-            console.print(f"[cyan]Votre répertoire de travail est :[/cyan] [bold green]{wd_experience}[/bold green]")
+            console.print(f"[cyan]Your working directory is now :[/cyan] [bold green]{wd_experience}[/bold green]")
 
             listedfiles = os.listdir(wd_experience)
             nombre_fichiers = len(listedfiles)
             
-            table_fichiers = Table(title="Fichiers trouvés", header_style="bold magenta")
+            table_fichiers = Table(title="Files found !", header_style="bold magenta")
             table_fichiers.add_column("Index", style="cyan")
             table_fichiers.add_column("Nom", style="yellow")
             for index, nom in enumerate(listedfiles):
@@ -104,23 +104,23 @@ def choix_repertoire_travail():
             console.print(table_fichiers)
             
             while True:
-                choix_temp = IntPrompt.ask(f"[green]Choisissez le template miappe rempli (0-{nombre_fichiers-1})[/green]")
+                choix_temp = IntPrompt.ask(f"[green]Please chose the filled MIAPPE template (0-{nombre_fichiers-1})[/green]")
                 if 0 <= choix_temp < nombre_fichiers:
                     choix_doc = listedfiles[choix_temp]
-                    console.print(f"[cyan]Votre document miappe est :[/cyan] [bold green]{choix_doc}[/bold green]")
+                    console.print(f"[cyan]Your MIAPPE template is :[/cyan] [bold green]{choix_doc}[/bold green]")
                     document_miappe = os.path.join(wd_experience, choix_doc)
                     break
                 else:
-                    console.print("[bold red]La sélection est incorrecte..[/bold red]")
+                    console.print("[bold red]Incorrect selection... :([/bold red]")
             console.print(table_fichiers)
             while True:
-                choix_temp = IntPrompt.ask(f"[green]Choisissez le fichier qui contient vos données tabulaires (0-{nombre_fichiers-1})[/green]")
+                choix_temp = IntPrompt.ask(f"[green]Please chose the tabular data file (0-{nombre_fichiers-1})[/green]")
                 if 0 <= choix_temp < nombre_fichiers:
                     choix_data = listedfiles[choix_temp]
-                    console.print(f"[cyan]Vos données tabulaires sont dans :[/cyan] [bold green]{choix_data}[/bold green]")
+                    console.print(f"[cyan]Your tabular data file is :[/cyan] [bold green]{choix_data}[/bold green]")
                     document_data = os.path.join(wd_experience, choix_data)
                     return wd_experience,choix_dossier,document_miappe,document_data
                 else:
-                    console.print("[bold red]La sélection est incorrecte..[/bold red]")
+                    console.print("[bold red]Incorrect selection... :([/bold red]")
         else:
-            console.print("[bold red]La sélection est incorrecte..[/bold red]")
+            console.print("[bold red]Incorrect selection... :([/bold red]")

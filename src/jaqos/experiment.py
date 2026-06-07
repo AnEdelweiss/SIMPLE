@@ -5,24 +5,24 @@ from jaqos.ui import console, Prompt, Panel
 
 def find_Exp(silex_API_Client):
     Exp_Api = silex.ExperimentsApi(silex_API_Client)
-    name_Exp = Prompt.ask("[cyan]Quelle expérience recherchez-vous ?[/cyan]")
-    with console.status("[bold green]Recherche en cours..."):
+    name_Exp = Prompt.ask("[cyan]what experience are you looking for ?[/cyan]")
+    with console.status("[bold green]Searching..."):
         exp_Src = Exp_Api.search_experiments(name=name_Exp)
     if not exp_Src["result"]:
-        console.print("[bold red]Aucune expérience trouvée.[/bold red]")
+        console.print("[bold red]No experiment with that name were found. :( [/bold red]")
         return
     exp_data = exp_Src["result"][0]
     details = f"""
     [bold cyan]URI:[/bold cyan] {exp_data.uri}
-    [bold cyan]Le nom:[/bold cyan] {exp_data.name}
-    [bold cyan]La description:[/bold cyan] {exp_data.description}
-    [bold cyan]Les objectifs:[/bold cyan] {exp_data.objective}
+    [bold cyan]Name:[/bold cyan] {exp_data.name}
+    [bold cyan]Description:[/bold cyan] {exp_data.description}
+    [bold cyan]Objectives:[/bold cyan] {exp_data.objective}
     """
-    console.print(Panel(details, title="[bold]Détails de l'expérience[/bold]", border_style="green"))
-    Prompt.ask("Appuyez sur 'enter' pour revenir au menu")
+    console.print(Panel(details, title="[bold]Experiment infos[/bold]", border_style="green"))
+    Prompt.ask("Press any key to go back to the main menu")
 
 def create_experiment(document_miappe, choix_dossier, silex_API_Client):
-    console.print(f"[cyan]Fichier :[/cyan] {document_miappe}")
+    console.print(f"[cyan]File : [/cyan] {document_miappe}")
     dataframe = pd.read_excel(document_miappe, sheet_name=2, header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
     
@@ -52,7 +52,7 @@ def create_experiment(document_miappe, choix_dossier, silex_API_Client):
         
         if Exp_Src:
             NameExp_uri[NameExp] = Exp_Src[0].uri
-            console.print(f"[bold yellow]Une experience existe deja avec cet URI:[/bold yellow] {NameExp_uri[NameExp]}")
+            console.print(f"[bold yellow]An experiment was found with this URI : [/bold yellow] {NameExp_uri[NameExp]}")
             
             Org_Api = silex.OrganizationsApi(silex_API_Client)
             Facilities_uri = {}

@@ -14,7 +14,7 @@ from jaqos.images_import import create_images
 def main():
     console.print(BANNER)
     console.print('[bold][green]______________________________________________________________________________________[/green][/bold]\n')
-    Prompt.ask("Appuyez sur une touche pour continuer")
+    Prompt.ask("Press a key to start")
     # INITIALISATION DES VARIABLES et de l'api ~
     choix_dossier = None
     document_miappe = None
@@ -24,58 +24,58 @@ def main():
     silex_API_Client = silex.ApiClient(verbose=False)
     # CONNECTING AS GUEST ON THE SANDBOX BY DEFAULT ~
     silex_API_Client.connect_to_opensilex_ws(identifier='guest@opensilex.org',password='guest',host="https://opensilex.org/sandbox/rest")
-    etat = "[cyan]Connecté en tant que[/cyan] [bold green]guest@opensilex.org[/bold green] [cyan]sur la[/cyan] [bold green]Sandbox[/bold green]."
+    etat = "[cyan]Logged in as[/cyan] [bold green]guest@opensilex.org[/bold green] [cyan]on [/cyan] [bold green]Sandbox[/bold green]."
     #BOUCLE PRINCIPALE
     while True:
         try:
             menu(etat)
-            user_input = IntPrompt.ask("[green]\\[+][/green] [cyan]Que souhaitez-vous faire ?[/cyan]")
+            user_input = IntPrompt.ask("[green]\\[+][/green] [cyan]What would you like to do?[/cyan]")
             
             if user_input == 9:
                 sys.exit(0)
 
             elif user_input == 1:
-                console.print("[cyan]Vous avez choisi de vous connecter[/cyan]")
+                console.print("[cyan]Connection :[/cyan]")
                 login = {}
                 liste_url = list(INSTANCES.keys())
                 liste_instances = list(INSTANCES.values())
         
-                table = Table(title="Instances disponibles", show_header=False)
+                table = Table(title="Available instances", show_header=False)
                 table.add_column("Index", style="cyan")
                 table.add_column("Nom", style="green")
                 for index, nom in enumerate(liste_instances):
                     table.add_row(str(index), nom)
                 console.print(table)
                 while True:
-                    temp_Inst = IntPrompt.ask(f"[green]\\[+][/green] Sur quelle instance souhaitez-vous vous connecter ? (0-{len(liste_instances)-1})")
+                    temp_Inst = IntPrompt.ask(f"[green]\\[+][/green]On which instance would you like to log in (0-{len(liste_instances)-1})")
                     if 0<=temp_Inst<=len(liste_instances)-1:
                         login["instance"] = liste_url[temp_Inst]
                         break
                     else:
-                        console.print(f"[red][bold]Veuillez choisir un nombre entre [white]0[/white] et [white]{len(liste_instances)-1}[/white][/red][/bold]")
-                login["id"] = Prompt.ask(f"[green]\\[+][/green] Identifiant sur {INSTANCES[login['instance']]}")
-                login["mdp"] = Prompt.ask("[green]\\[+][/green] Mot de passe", password=True)
+                        console.print(f"[red][bold]Please type a number between [white]0[/white] and [white]{len(liste_instances)-1}[/white][/red][/bold]")
+                login["id"] = Prompt.ask(f"[green]\\[+][/green] Username/mail on : {INSTANCES[login['instance']]}")
+                login["mdp"] = Prompt.ask("[green]\\[+][/green] Password", password=True)
                 
                 connecte = connexion(login, silex_API_Client)
                 if connecte:
-                    etat = f"[cyan]Connecté en tant que[/cyan] [bold green]{login['id']}[/bold green] [cyan]sur[/cyan] [bold green]{liste_instances[temp_Inst]}[/bold green]."
+                    etat = f"[cyan]Your are logged in as[/cyan] [bold green]{login['id']}[/bold green] [cyan]on[/cyan] [bold green]{liste_instances[temp_Inst]}[/bold green]."
                 else:
-                    etat = "[bold red]Vous n'êtes pas connecté, veuillez réessayer.[/bold red]"
+                    etat = "[bold red]You are not logged in, please try again...[/bold red]"
 
             elif user_input == 2:
                 if is_connected(silex_API_Client):
                     find_Exp(silex_API_Client)
                 else:
-                    print("Vous n'êtes pas connecté.")
+                    console.print("[red]Please try to log in first.[/red]")
 
             elif user_input == 3:
                 if is_connected(silex_API_Client):
                     if choix_dossier:
-                        changement_repertoire = Prompt.ask(f"Souhaitez-vous rester dans l'expérience [bold]{choix_dossier}[/bold] ?", choices=["y", "n"], default="y")
+                        changement_repertoire = Prompt.ask(f"Would you like to continue to work on this experiment ? [bold]{choix_dossier}[/bold] ?", choices=["y", "n"], default="y")
                         if changement_repertoire == 'n':
                             wd_experience, choix_dossier, document_miappe,document_data = choix_repertoire_travail()
                     else:
-                        console.print("[cyan]Vous avez choisi d'importer des données sur OpenSilex:[/cyan]")
+                        console.print("[cyan]You chose to import data on OpenSilex[/cyan]")
                         result = choix_repertoire_travail()
                         if result[0] is not None:
                             wd_experience, choix_dossier, document_miappe,document_data = result
@@ -85,11 +85,11 @@ def main():
                         break
                     while True:
                         if choix_dossier is None:
-                            console.print("[cyan]Vous avez choisi d'importer des données sur OpenSilex:[/cyan]")
+                            console.print("[cyan]You chose to import data on OpenSilex[/cyan]")
                             wd_experience, choix_dossier, document_miappe,document_data = choix_repertoire_travail()
 
-                        console.print(Panel(MENU_CREATION, title="[bold]Menu de Création[/bold]", border_style="cyan"))
-                        choix_creation = IntPrompt.ask("[green]Effectuez votre choix[/green]")
+                        console.print(Panel(MENU_CREATION, title="[bold]Experiment Menu[/bold]", border_style="cyan"))
+                        choix_creation = IntPrompt.ask("[green]Please make your choice[/green]")
 
                         if choix_creation == 1:
                             experiment_ok = create_experiment(document_miappe, choix_dossier, silex_API_Client)
@@ -115,15 +115,15 @@ def main():
                         elif choix_creation == 9:
                             break
                 else:
-                    console.print("[bold red]Vous n'êtes pas connecté.[/bold red]")
+                    console.print("[bold red]Your are not logged in[/bold red]")
 
             elif user_input in [4, 5, 6, 7, 8]:
-                print("en developpement")
+                print("under development")
             else:
-                print("Choix invalide")
+                print("Invalid input")
 
         except Exception as e:
-            print(f'attention quand meme ahah :\n{e}')
+            print(f'There was an error : :\n{e}')
         except KeyboardInterrupt:
-            print("\n[!] Abort")
+            print("\n[!] User abort!")
             sys.exit(1)

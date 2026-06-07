@@ -26,7 +26,7 @@ def create_factor(document_miappe, silex_API_Client):
     Exp_Src = Exp_Api.search_experiments(name=NameExp)["result"]
     NameExp_uri = {NameExp: Exp_Src[0].uri}
 
-    for index, row in track(list(dataframe.iterrows()), description="[green]Importation des facteurs...[/green]"):
+    for index, row in track(list(dataframe.iterrows()), description="[green]Importing factors...[/green]"):
         row_dict = row.dropna().to_dict()
         factor = str(row_dict.get('name', '')).strip()
         levels = list(str(row_dict.get('levels')).strip().split(","))
@@ -66,14 +66,14 @@ def create_factor(document_miappe, silex_API_Client):
     return Factors_Levels_uri, Factors_uri
 
 def create_germplasm(document_miappe, silex_API_Client):
-    console.print(f"[cyan]Fichier :[/cyan] {document_miappe}")
+    console.print(f"[cyan]Miappe file :[/cyan] {document_miappe}")
     dataframe = pd.read_excel(document_miappe, sheet_name=4, header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
     Germ_Api = silex.GermplasmApi(silex_API_Client)
     Species_uri = {}
     Germplasms_uri = {}
 
-    for index, row in track(list(dataframe.iterrows()), description="[green]Importation des germplasmes...[/green]"):
+    for index, row in track(list(dataframe.iterrows()), description="[green]Importing germplasms...[/green]"):
         row_dict = row.dropna().to_dict()
         germ_name = row_dict.get('name') 
         germ_species = row_dict.get('species') 
@@ -100,14 +100,14 @@ def create_germplasm(document_miappe, silex_API_Client):
                 Germ_Src = Germ_Api.search_germplasm(name=f"^{germ_name}$", rdf_type=germ_type_germplasm)["result"]
             Germplasms_uri[germ_name] = Germ_Src[0].uri
 
-    table = Table(title="Espèces", show_header=False)
+    table = Table(title="Species", show_header=False)
     table.add_column("Index", style="cyan")
     table.add_column("Nom", style="green")
     for germplasm in Germplasms_uri:
         table.add_row(germplasm, Germplasms_uri[germplasm])
     console.print(table)
 
-    table = Table(title="Variétés", show_header=False)
+    table = Table(title="Varieties", show_header=False)
     table.add_column("Index", style="cyan")
     table.add_column("Nom", style="green")
     for species in Species_uri:
@@ -149,7 +149,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
 
     # création des relations
     if Exp_Src is None:
-        console.print("[bold red]l'expérience n'éxiste pas, veuillez vérifier le nom.[/bold red]")
+        console.print(f"[bold red]This experiment doesn't exist, please check if the same is correct : {NameExp}[/bold red]")
         sys.exit()
     #on check les différents points qu'on veut garder pour les metadata des sciobj (start date,end date,material type)
     if StartExp is not None:
@@ -179,8 +179,8 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     dico_germplasm={}
     created_sci_obj=0
     #on envoie pour chaque ligne de la df scobj(sans les duplicatas)
-    for index, row in track(list(df_ScObj.iterrows()), description="[green]ScObj processing...[/green]"):
-        row["Tray ID"] = row["Tray ID"] + "_19"#test
+    for index, row in track(list(df_ScObj.iterrows()), description="[green]Processing Sci_Obj...[/green]"):
+        row["Tray ID"] = row["Tray ID"] + "-101"#test
         ScObj_Src = ScObj_Api.search_scientific_objects(name=row["Tray ID"])["result"] # on vérifie si l'objet scientifique existe
         if ScObj_Src:
             ScObj_uri.update({row["Tray ID"]: ScObj_Src[0].uri})
@@ -195,9 +195,9 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
                         germplasm_value=dico_germplasm[row["Germplasm"]]
                         relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasGermplasm", value=germplasm_value)
                         Relations_ScObj.append(relation_temp)
-                        console.print(f"[bold green]  Germplasme [cyan]{row['Germplasm']}[/cyan] trouvé[/bold green]")
+                        console.print(f"[bold green]  Germplasm [cyan]{row['Germplasm']}[/cyan] found[/bold green]")
                     else:
-                        console.print(f"[bold red] Germplasme [cyan]{row['Germplasm']}[/cyan] introuvable, vérifiez l'orthographe/la création [/bold red]")
+                        console.print(f"[bold red] Germplasm [cyan]{row['Germplasm']}[/cyan] cannot be found, please check for typos or if they exist.[/bold red]")
                         console.print("[bold red] Fermeture du client [/bold red]")
                         sys.exit()
                 else:
@@ -208,14 +208,14 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
 
             if Factors_Levels_uri and row["Factor Level"] is not None:
                 if row["Factor Level"] not in Factors_Levels_uri.keys():
-                    console.print("[bold red]\nle niveau de facteur ne corresponds pas.\n Lancement de la recherche de facteurs\n[/bold red]")
+                    console.print("[bold red]\n The factor level was not found.\n Starting factor import from the MIAPPE document\n[/bold red]")
                     Factors_Levels_uri,_= create_factor(document_miappe, silex_API_Client)
                     factor_level_value=Factors_Levels_uri.get(row["Factor Level"])
                     relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasFactorLevel", value=factor_level_value)
                     Relations_ScObj.append(relation_temp)
                     if row["Factor Level"] not in Factors_Levels_uri.keys():
-                        console.print(f"[bold red] Factor level [cyan]{row['Factor Level']}[/cyan] introuvable, vérifiez l'orthographe/la création [/bold red]")
-                        console.print("[bold red] Fermeture du client [/bold red]")
+                        console.print(f"[bold red] This factor level : [cyan]{row['Factor Level']}[/cyan] cannot be found, please check for typos or if they really exist.[/bold red]")
+                        console.print("[bold red] Exiting client [/bold red]")
                         sys.exit()
                 else :
                     factor_level_value=Factors_Levels_uri.get(row["Factor Level"])
@@ -247,6 +247,6 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
         df_final = pd.concat([df_precedent, df_export])
         with pd.ExcelWriter(fichier_excel, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
             df_final.to_excel(writer, sheet_name="scientific object", index=False)
-        console.print("[bold green]Excel mis à jour/créé avec succès.[/bold green]")
-    console.print(f"[bold green]Opération terminée :{len(ScObj_uri)-created_sci_obj} trouvés,{created_sci_obj} créés. [/bold green]")
+        console.print("[bold green]The scientific object sheet was sucessfuly created/edited.[/bold green]")
+    console.print(f"[bold green]End of import : {len(ScObj_uri)-created_sci_obj} found,{created_sci_obj} created. [/bold green]")
     return ScObj_uri

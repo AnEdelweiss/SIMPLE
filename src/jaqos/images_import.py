@@ -63,7 +63,7 @@ def get_round_protocol_info(wd_experience):
                 CamPos[round_index] = CamPos_rd
     # console.print(PlantMask)
     # console.print(CamPos)
-    console.print("[bold green]PlantMask and Camera Position Info Récupérées![/bold green]")
+    console.print("[bold green]PlantMask and Camera Position Info found ![/bold green]")
     return CamPos,PlantMask
 
 def link_image_time(document_data):
@@ -125,7 +125,7 @@ def create_provenances(document_miappe,silex_API_Client,pid="RGB1"):
         
         if prov_src:
             prov_dict[prov_name] = prov_src[0].uri
-            console.print(f"[cyan]Provenance trouvée :[/cyan][bold green]{prov_name} [cyan]URI:[/cyan] {prov_src[0].uri}[/bold green]")
+            console.print(f"[cyan]Provenance found :[/cyan][bold green]{prov_name} [cyan]URI:[/cyan] {prov_src[0].uri}[/bold green]")
         else:
             # Création générique basée sur la configuration
             body = silex.ProvenanceCreationDTO(
@@ -140,13 +140,13 @@ def create_provenances(document_miappe,silex_API_Client,pid="RGB1"):
             
             prov_src = dat_api.search_provenance(name=prov_name)["result"]
             prov_dict[prov_name] = prov_src[0].uri
-            console.print(f"[cyan]Provenance crée :[/cyan][bold green]{prov_name} [cyan] URI:[/cyan] {prov_src[0].uri}[/bold green]")
+            console.print(f"[cyan]Provenance created :[/cyan][bold green]{prov_name} [cyan] URI:[/cyan] {prov_src[0].uri}[/bold green]")
 
     #console.print(prov_dict)
     return prov_dict
 
 def parse_image_filename(filepath, timestamp_dict, prov_uri, pid="RGB1"):
-    """Extrait les métadonnées depuis le nom de fichier."""
+    #Extrait metadata depuis le nom de fichier.
     filename = os.path.basename(filepath).split(".")[0]
     filename_clean = filename.replace("_FishEyeCorrected", "").replace("_FishEyeMasked", "")
     
@@ -173,7 +173,7 @@ def parse_image_filename(filepath, timestamp_dict, prov_uri, pid="RGB1"):
     return metadata
 
 def get_existing_images(dat_api, prov_uri, exp_uri):
-    """Retourne un set de tuples (target, date, angle, round_order) existants."""
+    # On prends le set de tuples (target, date, angle, round_order) existants
     dat_src = dat_api.get_data_file_descriptions_by_search(
         provenances=[prov_uri], experiments=[exp_uri], page_size=100000
     )["result"]
@@ -203,16 +203,16 @@ def import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,si
     ls_fem = [x for x in ls_files if "_FishEyeMasked" in x ]
 
     console.print(f'[bold cyan]Numbers of FEC Img:[/bold cyan] [bold green]{len(ls_fec)}\n[bold cyan]Numbers of FEM:[/bold cyan] [bold green]{len(ls_fem)}')    
-    stop = Prompt.ask("[bold green]Continuer l'import?[/bold green]", choices=["y", "n"], default="y")
+    stop = Prompt.ask("[bold green]Do you want to continue to import images?[/bold green]", choices=["y", "n"], default="y")
     if stop =="n":
-        console.print("[bold red]Fermeture du client[/bold red]")
+        console.print("[bold red]OK, exiting client ![/bold red]")
         sys.exit()
     #Fin de liste des images
     #Pour TESTS
     sorted_ls_fec=sorted(ls_fec)
     sorted_ls_fem=sorted(ls_fem)
-    ls_fec = sorted_ls_fec[-11:-10] # On trie les deux listes dans l'ordre AZ puis on prends que les 5/10 derniers (en l'occurence les 5 derniers)
-    ls_fem = sorted_ls_fem[-11:-10] # Et on utilise ça à la place de la giga-liste 
+    ls_fec = sorted_ls_fec[-15:-11] # On trie les deux listes dans l'ordre AZ puis on prends que les 5/10 derniers (en l'occurence les 5 derniers)
+    ls_fem = sorted_ls_fem[-15:-10] # Et on utilise ça à la place de la giga-liste 
     #Pour TESTS
     CamPos,PlantMask=get_round_protocol_info(wd_experience)
     
@@ -280,7 +280,7 @@ def import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,si
         if (ScObj_uri[img["Tray ID"]], img["Date"].replace('+', '.000+'), img.get("Angle"), img["Round Order"]) not in existing_fem_keys
     ]
     
-    console.print(f"[bold green]{len(mask_data) - len(mask_to_upload)} [cyan]FEC existantes sur[/cyan] {len(mask_data)}[/bold green]")
+    console.print(f"[bold green]Found {len(mask_data) - len(mask_to_upload)} [cyan]FEC on[/cyan] {len(mask_data)} total[/bold green]")
 
     for img in track(mask_to_upload, description="[bold blue]Uploading FEM[/bold blue]"):
         if datetime.datetime.now() > timelimit:
@@ -304,4 +304,4 @@ def import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,si
         }
         dat_api.post_data_file(description=json.dumps(desc), file=img["Path"])
 
-    console.print('[bold green]Importation des images réussie[/bold green]')
+    console.print('[bold green]Suceeded in importing images ![/bold green]')

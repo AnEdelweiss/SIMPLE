@@ -15,9 +15,9 @@ def deconnexion(silex_API_Client) -> bool:
             silex.AuthenticationApi(silex_API_Client).logout
             if 'Authorization' in silex_API_Client.default_headers:
                 del silex_API_Client.default_headers['Authorization']
-            console.print("[bold green]Déconnexion réussie.[/bold green]")
+            console.print("[bold green]Successfully disconnected[/bold green]")
         except Exception as e:
-            console.print(f"[bold red]Note: Erreur lors de la déconnexion : {e}[/bold red]")
+            console.print(f"[bold red]Error durring disconnection : {e}[/bold red]")
             return False
     return True
 #Check rapide de la connexion
@@ -40,11 +40,11 @@ def connexion(login, silex_API_Client) -> bool:
                 error_data = json.loads(json_part)
                 Prompt.ask(f"[red]{error_data['result']['message']}[/red]") # j'affiche seulement le lessage d'erreur renvoyé ("utilisateur inconnu etc..")
             else:
-                Prompt.ask(f"[red]Erreur brute : {error_str}[/red]") # si je reçois qqc de bizarre
+                Prompt.ask(f"[red]error : {error_str}[/red]") # si je reçois qqc de bizarre
             return False
 
         except (json.JSONDecodeError, KeyError, IndexError):
-            Prompt.ask(f"Impossible de parser l'erreur. Erreur brute : {error_str}")#si je reçois qqc de vraiment bizarre
+            Prompt.ask(f"error is impossible to decode : {error_str}")#si je reçois qqc de vraiment bizarre
             return False
         
     
