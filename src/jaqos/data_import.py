@@ -180,7 +180,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     created_sci_obj=0
     #on envoie pour chaque ligne de la df scobj(sans les duplicatas)
     for index, row in track(list(df_ScObj.iterrows()), description="[green]Processing Sci_Obj...[/green]"):
-        row["Tray ID"] = row["Tray ID"] + "-101"#test
+        row["Tray ID"] = row["Tray ID"] + ""#test
         ScObj_Src = ScObj_Api.search_scientific_objects(name=row["Tray ID"])["result"] # on vérifie si l'objet scientifique existe
         if ScObj_Src:
             ScObj_uri.update({row["Tray ID"]: ScObj_Src[0].uri})
@@ -241,7 +241,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
             created_sci_obj+=1
     #écriture des metadata des objets scientifiques sur le excel 
     if dtos_to_export:
-        fichier_excel = "/home/edelweiss/Documents/JAQOS/exp_database/test_JACOS/output/Test_OSC_x_MIAPPE.xlsx"#A cahnger pour ne pas le hardcode..
+        fichier_excel = "exp_database/test_JACOS/output/miappe_template_filled.xlsx"#A cahnger pour ne pas le hardcode..
         df_export = pd.DataFrame(dtos_to_export)
         df_precedent = pd.read_excel(fichier_excel, sheet_name="scientific object")
         df_final = pd.concat([df_precedent, df_export])
