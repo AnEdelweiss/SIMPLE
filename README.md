@@ -1,6 +1,8 @@
 # JAQOS A Quick Opensilex script
 
-#### This is a work in progress, feedbacks are welcome.
+This is a work in progress, feedbacks are welcome.
+
+![picture of jaqos](jaqos.png)
 
 ## Description.
 
@@ -8,8 +10,9 @@ In the context of my internship, I am working on JAQOS, a Command Line Interface
 
 ## Before the first run :
 
-As of now, the file structure for using the script properly is the following : 
+As of now, the file structure for using the script properly is the following :
 
+```
 exp_database/
 ├── experiment_1/
 │   ├── tabular_data_file.xlsx
@@ -26,6 +29,7 @@ exp_database/
 ├── experiment_2/
 ├── experiment_3/
 └── experiment_4/
+```
 
 ## The miappe file
 

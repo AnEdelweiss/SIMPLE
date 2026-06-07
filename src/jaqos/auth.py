@@ -46,5 +46,3 @@ def connexion(login, silex_API_Client) -> bool:
         except (json.JSONDecodeError, KeyError, IndexError):
             Prompt.ask(f"error is impossible to decode : {error_str}")#si je reçois qqc de vraiment bizarre
             return False
-        
-    
