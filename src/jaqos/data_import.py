@@ -26,11 +26,11 @@ def create_factor(document_miappe, silex_API_Client):
     Exp_Src = Exp_Api.search_experiments(name=NameExp)["result"]
     NameExp_uri = {NameExp: Exp_Src[0].uri}
 
-    for index, row in track(list(dataframe.iterrows()), description="[green]Importing factors...[/green]"):
-        row_dict = row.dropna().to_dict()
-        factor = str(row_dict.get('name', '')).strip()
-        levels = list(str(row_dict.get('levels')).strip().split(","))
-        description = row_dict.get('description') 
+    for row in track(list(dataframe.to_dict('records')), description="[green]Importing factors...[/green]"):
+    
+        factor = str(row["name"]).strip() if pd.notna(row["name"]) else ""
+        levels = list(str(row["levels"]).strip().split(",")) if pd.notna(row["levels"]) else []
+        description = row["description"]  if pd.notna(row["description"]) else None
 
         Fac_Src = Fac_Api.search_factors(name=factor, experiment=NameExp_uri[NameExp])["result"]
         if Fac_Src:
@@ -73,13 +73,12 @@ def create_germplasm(document_miappe, silex_API_Client):
     Species_uri = {}
     Germplasms_uri = {}
 
-    for index, row in track(list(dataframe.iterrows()), description="[green]Importing germplasms...[/green]"):
-        row_dict = row.dropna().to_dict()
-        germ_name = row_dict.get('name') 
-        germ_species = row_dict.get('species') 
-        germ_type_species = row_dict.get('RDF_Type_Species') 
-        germ_type_germplasm = row_dict.get('rdf_type')
-        public = bool(row_dict.get('is_public'))
+    for row in track(list(dataframe.to_dict('records')), description="[green]Importing germplasms...[/green]"):
+        germ_name = row["name"]
+        germ_species = row["species"]
+        germ_type_species = row["RDF_Type_Species"]
+        germ_type_germplasm = row["rdf_type"]
+        public = bool(row["is_public"])
 
         if germ_name not in Species_uri:
             Germ_Src = Germ_Api.search_germplasm(name=f"^{germ_species}$", rdf_type=germ_type_species)["result"]
@@ -92,10 +91,11 @@ def create_germplasm(document_miappe, silex_API_Client):
         if germ_name not in Germplasms_uri:
             Germ_Src = Germ_Api.search_germplasm(name=f"^{germ_name}$", rdf_type=germ_type_germplasm)["result"]
             if not Germ_Src:
-                row_dict.pop('RDF_Type_Species', None)
-                row_dict.pop('Species', None)
-                row_dict['species'] = Species_uri[germ_species]
-                body = silex.GermplasmCreationDTO(**row_dict)
+                row.pop('RDF_Type_Species', None)
+                row.pop('Species', None)
+                row['species'] = Species_uri[germ_species]
+                print(row)
+                body = silex.GermplasmCreationDTO(**row)
                 Germ_Api.create_germplasm(body=body, check_only=False)
                 Germ_Src = Germ_Api.search_germplasm(name=f"^{germ_name}$", rdf_type=germ_type_germplasm)["result"]
             Germplasms_uri[germ_name] = Germ_Src[0].uri
@@ -152,12 +152,12 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
         console.print(f"[bold red]This experiment doesn't exist, please check if the same is correct : {NameExp}[/bold red]")
         sys.exit()
     #on check les différents points qu'on veut garder pour les metadata des sciobj (start date,end date,material type)
-    if StartExp is not None:
+    if StartExp:
         relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasCreationDate", value=StartExp)
         Relations_Gen.append(relation_temp)
     else:
         console.print('[bold yellow]Start Date Missing[/bold yellow]')
-    if EndExp is not None:
+    if EndExp:
         relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasDestructionDate", value=EndExp)
         Relations_Gen.append(relation_temp)
     else:
@@ -179,15 +179,15 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     dico_germplasm={}
     created_sci_obj=0
     #on envoie pour chaque ligne de la df scobj(sans les duplicatas)
-    for index, row in track(list(df_ScObj.iterrows()), description="[green]Processing Sci_Obj...[/green]"):
-        row["Tray ID"] = row["Tray ID"] + "_upscale"#test
+    for row in track(list(df_ScObj.to_dict('records')), description="[green]Processing Sci_Obj...[/green]"):
+        row["Tray ID"] = row["Tray ID"] + "vitesse"#test
         ScObj_Src = ScObj_Api.search_scientific_objects(name=row["Tray ID"])["result"] # on vérifie si l'objet scientifique existe
         if ScObj_Src:
             ScObj_uri.update({row["Tray ID"]: ScObj_Src[0].uri})
         else:
             Relations_ScObj = []
             #ici on à la logique de vérification des germplasmes dans les objets scientifiques, on vérifie si il est dans la liste des germplasmes connus, et si oui on prends son uri
-            if row["Germplasm"] is not None:
+            if row["Germplasm"]:
                 if row["Germplasm"] not in dico_germplasm.keys():
                     Germ_Src = silex.GermplasmApi(silex_API_Client).search_germplasm(name=f"^{row["Germplasm"]}$")["result"]
                     if Germ_Src:

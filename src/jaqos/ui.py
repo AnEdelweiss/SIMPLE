@@ -23,9 +23,8 @@ BANNER = f"""[green]
 ⠀⠈⢻⣧⡀⠀⠀⠀⢻⣧⠀⠀⠀⢀⣠⣤⣶⡿⠟⢻⣿⣼⡟⠁⠀⠀⢀⣼⡟⠁⠀
 ⠀⠀⠀⠙⢿⣦⡀⠀⠀⢻⣷⣴⣾⣿⣛⣉⣀⣀⣀⣸⣿⡟⠀⠀⢀⣴⣿⠏⠀⠀⠀
 ⠀⠀⠀⠀⠀⠙⢿⣶⣤⣀⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⣀⣤⣶⡿⠋⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠈⠙⠻⠿⣷⣶⣦⣤⣤⣤⣴⣶⣾⠿⠟⠋⠁⠀⠀⠀⠀⠀⠀⠀         
+⠀⠀⠀⠀⠀⠀⠀⠈⠙⠻⠿⣷⣶⣦⣤⣤⣤⣴⣶⣾⠿⠟⠋⠁⠀⠀⠀⠀⠀⠀⠀       
 
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
   \\[+] JAQOS A Quick Opensilex Script
   [cyan]\\[+] You can chose an option by typing the associated number and pressing 'enter'
   [yellow]\\[+] You will be logged as a guest by default, you can log in to change user.[/yellow]

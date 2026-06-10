@@ -25,36 +25,41 @@ def create_experiment(document_miappe, choix_dossier, silex_API_Client):
     console.print(f"[cyan]File : [/cyan] {document_miappe}")
     dataframe = pd.read_excel(document_miappe, sheet_name=2, header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
-    
-    for index, row in dataframe.iterrows():
-        row_dict = row.dropna().to_dict()
-        NameExp_uri = {}
-        
+
+    records = dataframe.where(pd.notnull(dataframe), None).to_dict('records')
+
+    Exp_Api = silex.ExperimentsApi(silex_API_Client)
+    Org_Api = silex.OrganizationsApi(silex_API_Client)
+    Sec_Api = silex.SecurityApi(silex_API_Client)
+    Proj_Api = silex.ProjectsApi(silex_API_Client)
+
+    for row_dict in records:
+        NameExp_uri = {} 
+        #Fonction pour split, strip et retourner un truc vide si la case est vide
         def to_list(key):
-            val = row_dict.get(key)
-            return list(map(str.strip, val.split(","))) if val else []
+            val = row_dict[key]
+            return [x.strip() for x in str(val).split(",")] if val is not None else []
 
         NameExp = row_dict.get('name')
         StartExp = row_dict.get('start_date')
         EndExp = row_dict.get('end_date')
-        DescriptionExp = row_dict.get('description')
+        DescriptionExp = row_dict.get('description', '')
         ObjectiveExp = row_dict.get('objective')
+        Is_Public = bool(row_dict.get('is_public', True))
+
         ls_Organisation = to_list('organisations')
         ls_Projects = to_list('projects')
         ls_Facilities = to_list('facilities')
         ls_Scientific_Supervisors = to_list('scientific_supervisors')
         ls_Technical_Supervisors = to_list('technical_supervisors')
         ls_Groups = to_list('groups')
-        Is_Public = bool(row_dict.get('is_public'))
-        
-        Exp_Api = silex.ExperimentsApi(silex_API_Client)
+
         Exp_Src = Exp_Api.search_experiments(name=NameExp)["result"]
         
         if Exp_Src:
             NameExp_uri[NameExp] = Exp_Src[0].uri
             console.print(f"[bold yellow]An experiment was found with this URI : [/bold yellow] {NameExp_uri[NameExp]}")
             
-            Org_Api = silex.OrganizationsApi(silex_API_Client)
             Facilities_uri = {}
             for facility in ls_Facilities:
                 if not facility:
@@ -88,7 +93,6 @@ def create_experiment(document_miappe, choix_dossier, silex_API_Client):
             console.print(f"[bold]Is_Public:[/bold] {Is_Public}")
             console.print("[cyan]" + "_"*100 + "[/cyan]")
 
-            Org_Api = silex.OrganizationsApi(silex_API_Client)
             Organisation_uri = {}
             for organisation in ls_Organisation:
                 if organisation is None:
@@ -104,7 +108,6 @@ def create_experiment(document_miappe, choix_dossier, silex_API_Client):
                         console.print(f"[bold red]{organisation}: Unknown Organisation[/bold red]")
                         ls_Organisation = None
 
-            Sec_Api = silex.SecurityApi(silex_API_Client)
             Groups_uri = {}
             for group in ls_Groups:
                 if group is None:
@@ -120,7 +123,6 @@ def create_experiment(document_miappe, choix_dossier, silex_API_Client):
                         console.print(f"[bold red]{group}: Unknown Group[/bold red]")
                         ls_Groups = None
 
-            Proj_Api = silex.ProjectsApi(silex_API_Client)
             Projects_uri = {}
             for project in ls_Projects:
                 if project is None:
@@ -199,5 +201,5 @@ def create_experiment(document_miappe, choix_dossier, silex_API_Client):
 
             Exp_Src = Exp_Api.search_experiments(name=NameExp)
             NameExp_uri.update({NameExp: Exp_Src["result"][0].uri})
-            console.print(f"[bold cyan]Votre expérience {NameExp} porte l'URI:[/bold cyan] {NameExp_uri[NameExp]}")
+            console.print(f"[bold cyan]Your experiment {NameExp} has the following uri:[/bold cyan] {NameExp_uri[NameExp]}")
         return 1
