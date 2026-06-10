@@ -9,7 +9,7 @@ def find_Exp(silex_API_Client):
     with console.status("[bold green]Searching..."):
         exp_Src = Exp_Api.search_experiments(name=name_Exp)
     if not exp_Src["result"]:
-        console.print("[bold red]No experiment with that name were found. :( [/bold red]")
+        Prompt.ask("[bold red]No experiment with that name were found. :( [/bold red]")
         return
     exp_data = exp_Src["result"][0]
     details = f"""

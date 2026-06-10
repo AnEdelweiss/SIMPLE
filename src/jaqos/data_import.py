@@ -138,12 +138,12 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     #Récupérer un dictionnaire de facteurs levels pour cette experience
     api_response = silex.ExperimentsApi(silex_API_Client).get_available_factors(Exp_Src["result"][0].uri, )
     #print(api_response["result"])
-    if api_response["result"] is not None:
+    if api_response["result"]:
         Factors_Levels_uri={}
         for resultat in api_response["result"]:
             for factor_level in resultat.levels :
                 Factors_Levels_uri[factor_level.name]=factor_level.uri
-        #console.print(f"facteurs liés à l'experience trouvés : {Factors_Levels_uri}")
+    #console.print(f"facteurs liés à l'experience trouvés : {Factors_Levels_uri}")
     else :
         Factors_Levels_uri,_= create_factor(document_miappe, silex_API_Client)
 
@@ -180,7 +180,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     created_sci_obj=0
     #on envoie pour chaque ligne de la df scobj(sans les duplicatas)
     for index, row in track(list(df_ScObj.iterrows()), description="[green]Processing Sci_Obj...[/green]"):
-        row["Tray ID"] = row["Tray ID"] + ""#test
+        row["Tray ID"] = row["Tray ID"] + "_upscale"#test
         ScObj_Src = ScObj_Api.search_scientific_objects(name=row["Tray ID"])["result"] # on vérifie si l'objet scientifique existe
         if ScObj_Src:
             ScObj_uri.update({row["Tray ID"]: ScObj_Src[0].uri})
@@ -206,19 +206,17 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
                     Relations_ScObj.append(relation_temp)
             #on récupère les uri des niveaux de facteur
 
-            if Factors_Levels_uri and row["Factor Level"] is not None:
-                if row["Factor Level"] not in Factors_Levels_uri.keys():
+            if Factors_Levels_uri and row["Factor Level"]:
+                if row["Factor Level"] not in Factors_Levels_uri:
                     console.print("[bold red]\n The factor level was not found.\n Starting factor import from the MIAPPE document\n[/bold red]")
-                    Factors_Levels_uri,_= create_factor(document_miappe, silex_API_Client)
-                    factor_level_value=Factors_Levels_uri.get(row["Factor Level"])
-                    relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasFactorLevel", value=factor_level_value)
-                    Relations_ScObj.append(relation_temp)
-                    if row["Factor Level"] not in Factors_Levels_uri.keys():
+                    Factors_Levels_uri, _ = create_factor(document_miappe, silex_API_Client)
+                    
+                    if row["Factor Level"] not in Factors_Levels_uri:
                         console.print(f"[bold red] This factor level : [cyan]{row['Factor Level']}[/cyan] cannot be found, please check for typos or if they really exist.[/bold red]")
                         console.print("[bold red] Exiting client [/bold red]")
                         sys.exit()
-                else :
-                    factor_level_value=Factors_Levels_uri.get(row["Factor Level"])
+                else:
+                    factor_level_value = Factors_Levels_uri.get(row["Factor Level"])
                     relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasFactorLevel", value=factor_level_value)
                     Relations_ScObj.append(relation_temp)
 
@@ -241,7 +239,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
             created_sci_obj+=1
     #écriture des metadata des objets scientifiques sur le excel 
     if dtos_to_export:
-        fichier_excel = "exp_database/test_JACOS/output/miappe_template_filled.xlsx"#A cahnger pour ne pas le hardcode..
+        fichier_excel = "/home/edelweiss/Documents/JAQOS/exp_database/test_JAQOS/output/miappe_template_filled.xlsx"#A cahnger pour ne pas le hardcode..
         df_export = pd.DataFrame(dtos_to_export)
         df_precedent = pd.read_excel(fichier_excel, sheet_name="scientific object")
         df_final = pd.concat([df_precedent, df_export])
