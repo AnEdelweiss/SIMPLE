@@ -10,13 +10,13 @@ from datetime import datetime
 
 def create_factor(document_miappe, silex_API_Client):
     #getting experiment name
-    dataframe = pd.read_excel(document_miappe, sheet_name=2, header=1)
+    dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
     NameExp = dataframe['name'].dropna().iloc[0]
 
     #getting factors
     console.print(f"[cyan]Fichier :[/cyan] {document_miappe}")
-    dataframe = pd.read_excel(document_miappe, sheet_name=6, header=1)
+    dataframe = pd.read_excel(document_miappe, sheet_name="factors", header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
     Fac_Api = silex.FactorsApi(silex_API_Client)
     Factors_uri = {}
@@ -67,7 +67,7 @@ def create_factor(document_miappe, silex_API_Client):
 
 def create_germplasm(document_miappe, silex_API_Client):
     console.print(f"[cyan]Miappe file :[/cyan] {document_miappe}")
-    dataframe = pd.read_excel(document_miappe, sheet_name=4, header=1)
+    dataframe = pd.read_excel(document_miappe, sheet_name="germplasm", header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
     Germ_Api = silex.GermplasmApi(silex_API_Client)
     Species_uri = {}
@@ -117,7 +117,7 @@ def create_germplasm(document_miappe, silex_API_Client):
 
 def create_sci_obj(document_data,document_miappe,silex_API_Client):
     # Récupération du excel page experiment
-    dataframe = pd.read_excel(document_miappe, sheet_name=2, header=1)
+    dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
     NameExp = dataframe['name'].dropna().iloc[0]
     StartExp = dataframe['start_date'].dropna().iloc[0]
@@ -240,10 +240,10 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     if dtos_to_export:
         fichier_excel = "/home/edelweiss/Documents/JAQOS/exp_database/test_JAQOS/output/miappe_template_filled.xlsx"#A cahnger pour ne pas le hardcode..
         df_export = pd.DataFrame(dtos_to_export)
-        df_precedent = pd.read_excel(fichier_excel, sheet_name="scientific object")
+        df_precedent = pd.read_excel(fichier_excel, sheet_name="Observation Unit")
         df_final = pd.concat([df_precedent, df_export])
         with pd.ExcelWriter(fichier_excel, engine="openpyxl", mode="a", if_sheet_exists="replace") as writer:
-            df_final.to_excel(writer, sheet_name="scientific object", index=False)
+            df_final.to_excel(writer, sheet_name="Observation Unit", index=False)
         console.print("[bold green]The scientific object sheet was sucessfuly created/edited.[/bold green]")
     console.print(f"[bold green]End of import : {len(ScObj_uri)-created_sci_obj} found,{created_sci_obj} created. [/bold green]")
     return ScObj_uri

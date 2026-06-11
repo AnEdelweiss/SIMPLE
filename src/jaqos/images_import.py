@@ -84,7 +84,7 @@ def link_image_time(document_data):
 
 def create_provenances(document_miappe,silex_API_Client,pid="RGB1"):
     #on cherche le MIAPPE pour avoir les facilities( et dans le futur le pid aussi surement)
-    dataframe = pd.read_excel(document_miappe, sheet_name=2, header=1)
+    dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
     facility = str(dataframe['facilities'].iloc[0]).replace(",","_")
     dat_api = silex.DataApi(silex_API_Client)
@@ -185,7 +185,7 @@ def get_existing_images(dat_api, prov_uri, exp_uri):
 
 def import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,silex_API_Client, pid="RGB1"):
     #getting experiment uri
-    dataframe = pd.read_excel(document_miappe, sheet_name=2, header=1)
+    dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
     NameExp = dataframe['name'].dropna().iloc[0]
     Exp_Src = silex.ExperimentsApi(silex_API_Client).search_experiments(name=NameExp)["result"]
