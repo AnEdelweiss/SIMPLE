@@ -2,8 +2,7 @@
 
 This is a work in progress, feedbacks are welcome.
 
-![picture of jaqos](jaqos.png)
-
+<a href="https://asciinema.org/a/SOl4FtwQvrXCMzVB" target="_blank"><img src="https://asciinema.org/a/SOl4FtwQvrXCMzVB.svg" /></a>
 ## Description.
 
 In the context of my internship, I am working on JAQOS, a Command Line Interface coded in python with a focus on ease of use, rapidity and flexibility. This tool will ( I hope ) help researchers uppload MIAPPE compliant phenotyping data on OpenSilex instances without any efforts. Allowing them to keep germplasm banks up to date, to create experiments, create or add scientific objects to an experiment, add pictures, DATA and more.
@@ -54,6 +53,7 @@ Everything should work !
 - ~~Using the rich library.~~
 - ~~English translation.~~
 - ~~Photo upploadng.~~
+- Make a 'help' feature in the CLI
 - Data upploading.
 - Generalization : (changing the hardcoded provenances and PID, create the output document and the output folder in the experiment directory etc...)
 - Automatization(?)
