@@ -107,10 +107,10 @@ def main():
                             create_images(wd_experience,document_data,document_miappe,silex_API_Client)
                             
                         elif choix_creation == 6:
-                            create_experiment(document_miappe, choix_dossier, silex_API_Client)
-                            create_germplasm(document_miappe, silex_API_Client)
-                            create_factor(document_miappe, silex_API_Client)
-                            create_sci_obj(document_data,document_miappe,silex_API_Client)
+                            experiment_ok = create_experiment(document_miappe, choix_dossier, silex_API_Client)
+                            Germplasms_uri, _ = create_germplasm(document_miappe, silex_API_Client)
+                            Factors_Levels_uri, _ = create_factor(document_miappe, silex_API_Client)
+                            sci_obj = create_sci_obj(document_data,document_miappe,silex_API_Client)
                             break
                         elif choix_creation == 9:
                             break

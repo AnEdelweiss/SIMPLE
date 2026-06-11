@@ -31,7 +31,7 @@ BANNER = f"""[green]
   [green]\\[+] Please read the README.md file available on the github for guidance.
   
   [white]VERSION-JAQOS[/white]     = [bold green]{__version__} MIAPPE & RICH & ENGLISH[/bold green]
-  [white]VERSION-OpenSilex[/white] = [bold green]1.4[/bold green]
+  [white]VERSION-OpenSilex[/white] = [bold green]1.5.1[/bold green]
   [white]VERSION-MIAPPE[/white]    = [bold green]1.2[/bold green]
     [white]Made By[/white]         = [bold green]•┈••✦ Edelweiss ✦••┈•[/bold green]
 """

@@ -94,20 +94,19 @@ def create_germplasm(document_miappe, silex_API_Client):
                 row.pop('RDF_Type_Species', None)
                 row.pop('Species', None)
                 row['species'] = Species_uri[germ_species]
-                print(row)
                 body = silex.GermplasmCreationDTO(**row)
                 Germ_Api.create_germplasm(body=body, check_only=False)
                 Germ_Src = Germ_Api.search_germplasm(name=f"^{germ_name}$", rdf_type=germ_type_germplasm)["result"]
             Germplasms_uri[germ_name] = Germ_Src[0].uri
 
-    table = Table(title="Species", show_header=False)
+    table = Table(title="Varieties", show_header=False)
     table.add_column("Index", style="cyan")
     table.add_column("Nom", style="green")
     for germplasm in Germplasms_uri:
         table.add_row(germplasm, Germplasms_uri[germplasm])
     console.print(table)
 
-    table = Table(title="Varieties", show_header=False)
+    table = Table(title="Species", show_header=False)
     table.add_column("Index", style="cyan")
     table.add_column("Nom", style="green")
     for species in Species_uri:
