@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 from lxml import etree as ET
 import pandas as pd
 import opensilexClientToolsPython as silex
@@ -179,7 +180,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     created_sci_obj=0
     #on envoie pour chaque ligne de la df scobj(sans les duplicatas)
     for row in track(list(df_ScObj.to_dict('records')), description="[green]Processing Sci_Obj...[/green]"):
-        row["Tray ID"] = row["Tray ID"] + "vitesse"#test
+        row["Tray ID"] = row["Tray ID"] + ""#test
         ScObj_Src = ScObj_Api.search_scientific_objects(name=row["Tray ID"])["result"] # on vérifie si l'objet scientifique existe
         if ScObj_Src:
             ScObj_uri.update({row["Tray ID"]: ScObj_Src[0].uri})
@@ -238,7 +239,9 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
             created_sci_obj+=1
     #écriture des metadata des objets scientifiques sur le excel 
     if dtos_to_export:
-        fichier_excel = "/home/edelweiss/Documents/JAQOS/exp_database/test_JAQOS/output/miappe_template_filled.xlsx"#A cahnger pour ne pas le hardcode..
+        dossier_parent = os.path.dirname(document_data)
+        fichier_excel = os.path.join(dossier_parent, "output", "miappe_template_filled.xlsx")
+        os.makedirs(os.path.dirname(fichier_excel), exist_ok=True)
         df_export = pd.DataFrame(dtos_to_export)
         df_precedent = pd.read_excel(fichier_excel, sheet_name="Observation Unit")
         df_final = pd.concat([df_precedent, df_export])

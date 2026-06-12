@@ -111,7 +111,12 @@ def main():
                             Germplasms_uri, _ = create_germplasm(document_miappe, silex_API_Client)
                             Factors_Levels_uri, _ = create_factor(document_miappe, silex_API_Client)
                             sci_obj = create_sci_obj(document_data,document_miappe,silex_API_Client)
+                            create_images(wd_experience,document_data,document_miappe,silex_API_Client)
                             break
+                        elif choix_creation == 7:
+                            continue
+                                
+                                
                         elif choix_creation == 9:
                             break
                 else:
