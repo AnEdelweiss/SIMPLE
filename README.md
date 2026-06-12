@@ -2,9 +2,9 @@
 
 This is a work in progress, feedbacks are welcome.
 
-    V click here for a Quick Demo ! V
+  V click here for a Quick Demo ! V
 
-[![asciicast](https://asciinema.org/a/SOl4FtwQvrXCMzVB.svg)](https://asciinema.org/a/SOl4FtwQvrXCMzVB)
+[![asciicast](https://asciinema.org/a/SOl4FtwQvrXCMzVB.svg "Jaqos preview")](https://asciinema.org/a/SOl4FtwQvrXCMzVB)
 
 ## Description.
 
@@ -45,8 +45,9 @@ as this is a work in progress, it currently only works with the current tabular 
 
 - git clone https://github.com/AnEdelweiss/JAQOS.git
 - cd JAQOS
+- uv venv
 - uv pip install -r pyproject.toml
-- uv run jaqos.
+- uv run jaqos
 
 You can then use the provided dummy experiment in test_JAQOS, you can also modify the content of the miappe_template to try and create different experiments, germpasms etc...
 Everything should work !
