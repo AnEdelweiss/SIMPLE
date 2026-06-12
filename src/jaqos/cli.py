@@ -8,7 +8,7 @@ from rich.table import Table
 from jaqos.ui import console, BANNER, MENU_CREATION, menu, choix_repertoire_travail
 from jaqos.auth import INSTANCES, connexion, is_connected
 from jaqos.experiment import find_Exp, create_experiment
-from jaqos.data_import import create_factor, create_germplasm, create_sci_obj
+from jaqos.data_import import create_factor, create_germplasm, create_sci_obj,create_data
 from jaqos.images_import import create_images
 
 def main():
@@ -101,22 +101,21 @@ def main():
                             Factors_Levels_uri, _ = create_factor(document_miappe, silex_API_Client)
 
                         elif choix_creation == 4:
-                            sci_obj = create_sci_obj(document_data,document_miappe,silex_API_Client)
+                            ScObj_uri = create_sci_obj(document_data,document_miappe,silex_API_Client)
 
                         elif choix_creation == 5:
-                            create_images(wd_experience,document_data,document_miappe,silex_API_Client)
+                            prov_dict=create_images(wd_experience,document_data,document_miappe,silex_API_Client)
                             
                         elif choix_creation == 6:
                             experiment_ok = create_experiment(document_miappe, choix_dossier, silex_API_Client)
                             Germplasms_uri, _ = create_germplasm(document_miappe, silex_API_Client)
                             Factors_Levels_uri, _ = create_factor(document_miappe, silex_API_Client)
-                            sci_obj = create_sci_obj(document_data,document_miappe,silex_API_Client)
-                            create_images(wd_experience,document_data,document_miappe,silex_API_Client)
+                            ScObj_uri = create_sci_obj(document_data,document_miappe,silex_API_Client)
+                            prov_dict=create_images(wd_experience,document_data,document_miappe,silex_API_Client)
                             break
                         elif choix_creation == 7:
-                            continue
-                                
-                                
+                            create_data(document_data, document_miappe, silex_API_Client,wd_experience)
+                            
                         elif choix_creation == 9:
                             break
                 else:

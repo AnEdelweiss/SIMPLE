@@ -19,6 +19,7 @@ def create_images(wd_experience,document_data,document_miappe,silex_API_Client):
     ScObj_uri=create_sci_obj(document_data,document_miappe,silex_API_Client)
     import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,silex_API_Client)
 
+    return prov_dict,
 def get_round_protocol_info(wd_experience):
         ### Get RoundProtocol Infos 
     Round_folder = os.path.join(wd_experience, '00-RoundProtocol')
@@ -86,7 +87,7 @@ def create_provenances(document_miappe,silex_API_Client,pid="RGB1"):
     #on cherche le MIAPPE pour avoir les facilities( et dans le futur le pid aussi surement)
     dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
-    facility = str(dataframe['facilities'].iloc[0]).replace(",","_")
+    facility = str(dataframe['facilities'].iloc[0]).replace(",","_").replace(" ","_")
     dat_api = silex.DataApi(silex_API_Client)
     prov_dict = {}
     # on décrit les 3 différentes provenances
@@ -211,8 +212,8 @@ def import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,si
     #Pour TESTS
     sorted_ls_fec=sorted(ls_fec)
     sorted_ls_fem=sorted(ls_fem)
-    ls_fec = sorted_ls_fec[-15:-11] # On trie les deux listes dans l'ordre AZ puis on prends que les 5/10 derniers (en l'occurence les 5 derniers)
-    ls_fem = sorted_ls_fem[-15:-10] # Et on utilise ça à la place de la giga-liste 
+    ls_fec = sorted_ls_fec[-15:-1] # On trie les deux listes dans l'ordre AZ puis on prends que les 5/10 derniers (en l'occurence les 5 derniers)
+    ls_fem = sorted_ls_fem[-15:-1] # Et on utilise ça à la place de la giga-liste 
     #Pour TESTS
     CamPos,PlantMask=get_round_protocol_info(wd_experience)
     
