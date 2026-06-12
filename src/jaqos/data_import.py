@@ -8,6 +8,7 @@ from rich.progress import track
 from rich.table import Table
 from jaqos.ui import console
 import datetime
+from pprint import pprint
 
 def create_factor(document_miappe, silex_API_Client):
     #getting experiment name
@@ -129,8 +130,8 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     df_data = pd.read_excel(document_data)
     PID = df_data['PID'].unique()[0]
     console.print(f'[bold cyan]PID found:[/bold cyan] {PID}')
-    #on garde seulement les tray id uniques
-    df_ScObj = df_data.loc[:, "Tray ID":"PID"].drop_duplicates()
+    #on garde seulement les Tray ID uniques
+    df_ScObj = df_data.loc[:, "Tray ID":"PID"].drop_duplicates(subset=["Tray ID"])
     Relations_Gen = []
     #on cherche si l'expérience éxiste pour en extraire l'uri
     Exp_Src = silex.ExperimentsApi(silex_API_Client).search_experiments(name=NameExp)
@@ -178,12 +179,18 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     dtos_to_export = []
     dico_germplasm={}
     created_sci_obj=0
+    #JE RECUPERE TOUS LES OBJETS SCIENTIFIQUES LIES A L'EXPERIENCE
+    # JE LES METS DANS UN DICTIONNAIRE ET JE VERIFIE CHAQUE TRAY ID AVEC LE NOM DANS LE DICTIONNAIRE
+    all_existing_objs = ScObj_Api.search_scientific_objects(experiment=NameExp_uri[NameExp], page_size=10000)["result"]
+    scobj_cache = {obj.name: obj.uri for obj in all_existing_objs}
+    # print(all_existing_objs)
+    # print(scobj_cache)
     #on envoie pour chaque ligne de la df scobj(sans les duplicatas)
     for row in track(list(df_ScObj.to_dict('records')),total=len(df_ScObj), description="[green]Processing Sci_Obj...[/green]"):
         row["Tray ID"] = row["Tray ID"] + ""#test
-        ScObj_Src = ScObj_Api.search_scientific_objects(name=f"^{row["Tray ID"]}$")["result"] # on vérifie si l'objet scientifique existe
-        if ScObj_Src:
-            ScObj_uri.update({row["Tray ID"]: ScObj_Src[0].uri})
+        tray_id=row["Tray ID"]
+        if tray_id in scobj_cache:
+            ScObj_uri.update({tray_id: scobj_cache[tray_id]})
         else:
             Relations_ScObj = []
             #ici on à la logique de vérification des germplasmes dans les objets scientifiques, on vérifie si il est dans la liste des germplasmes connus, et si oui on prends son uri
@@ -223,14 +230,23 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
             #on concatène les infos générales et les uri des germplasmes/facteurs puis on envoie le body et on le stock dans un dictionnaire
             Relations = Relations_Gen + Relations_ScObj
             body = silex.ScientificObjectCreationDTO(name=row["Tray ID"], rdf_type=rdf_type, relations=Relations, experiment=NameExp_uri[NameExp])
-            ScObj_Api.create_scientific_object(body,)
-            ScObj_Src = ScObj_Api.search_scientific_objects(name=row["Tray ID"])["result"]
-            ScObj_uri.update({row["Tray ID"]: ScObj_Src[0].uri})
+            api_resp=ScObj_Api.create_scientific_object(body,)
+            url_api=api_resp["result"][0]
+            ##ATTENTION NE FONCTIONNE QUE SUR LA SANDBOX, DEMANDER A OPENSILEX POUR RENVOYER L'URI DANS L'API
+            ScObj_Src=url_api.replace("http://opensilex.test/","opensilex-sandbox:") 
+            #print(ScObj_Src)
+            #print(api_resp["result"][0])
+            # sys.exit()
+            # ScObj_Src=1
+            #ScObj_Src = ScObj_Api.search_scientific_objects(name=row["Tray ID"])["result"]
+            #print(ScObj_Src)
+            ScObj_uri.update({row["Tray ID"]: ScObj_Src})
+            scobj_cache[row["Tray ID"]] = ScObj_Src
 
             dtos_to_export.append({
                 "studyId": body.experiment,
                 "obsUnitType": body.rdf_type,
-                "obsUnitId": ScObj_Src[0].uri,
+                "obsUnitId": ScObj_Src,
                 "externalId": body.name,
                 "biologicalMaterialId": germplasm_value if germplasm_value else None,
                 "obsUnitFactorValue": factor_level_value if factor_level_value else None,
@@ -249,12 +265,11 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
             df_final.to_excel(writer, sheet_name="Observation Unit", index=False)
         console.print("[bold green]The scientific object sheet was sucessfuly created/edited.[/bold green]")
     console.print(f"[bold green]End of import : {len(ScObj_uri)-created_sci_obj} found,{created_sci_obj} created. [/bold green]")
+    #pprint(ScObj_uri)
     return ScObj_uri
 
-def create_data(document_data, document_miappe, silex_API_Client,wd_experience):
-    #CETTE PARTIE C'EST LE CREATE PROVENANCES !!
+def create_provenances(document_miappe,silex_API_Client,pid="RGB1"):
     #on cherche le MIAPPE pour avoir les facilities( et dans le futur le pid aussi surement)
-    pid='RGB1'
     dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
     facility = str(dataframe['facilities'].iloc[0]).replace(",","_").replace(" ","_")
@@ -312,10 +327,17 @@ def create_data(document_data, document_miappe, silex_API_Client,wd_experience):
             prov_src = dat_api.search_provenance(name=prov_name)["result"]
             prov_dict[prov_name] = prov_src[0].uri
             console.print(f"[cyan]Provenance created :[/cyan][bold green]{prov_name} [cyan] URI:[/cyan] {prov_src[0].uri}[/bold green]")
-    #JUSQUE A LA
+
+    #console.print(prov_dict)
+    return prov_dict
+
+def create_data(document_data, document_miappe, silex_API_Client,wd_experience):
+
+    prov_dict=create_provenances(document_miappe,silex_API_Client,pid="RGB1")
     #ON TROUVE LES URI DES OBJETS SCIENTIFIQUES
+
     ScObj_uri=create_sci_obj(document_data,document_miappe,silex_API_Client)
-    # print(ScObj_uri)
+
 
     #JE RECUPERE LE NOM ET L'URI DE L'ÉXPERIENCE
     dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
@@ -369,7 +391,6 @@ def create_data(document_data, document_miappe, silex_API_Client,wd_experience):
     Var_Api = silex.VariablesApi(silex_API_Client)
 
     Prov_Was_Associated_With=silex.ProvEntityModel(uri="http://opensilex.test/id/device/plantscreen_data_analyser/1",rdf_type="vocabulary:Software")
-    df_data=df_data[0:500]
     logfile={}
     for key, value in Morpho_Info.items():
         logfile[value] = []
@@ -381,7 +402,7 @@ def create_data(document_data, document_miappe, silex_API_Client,wd_experience):
             df_Slice = df_data.iloc[slc : slc + pas]
             bodies=[]
             count=count+1
-            for index, row in track(df_Slice.iterrows(),description="importing data"):
+            for row in track(df_Slice.to_dict('records'), description="importing data"):
                 Dat_Src=Dat_Api.search_data_list(targets = [ScObj_uri[row["Tray ID"]]],
                                                 metadata = json.dumps({'Round Order': row['Round Order']}),
                                                 start_date=row['Measuring Time'].replace('+', '.000+'),

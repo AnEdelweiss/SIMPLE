@@ -21,6 +21,7 @@ def main():
     wd_experience = None
     Factors_Levels_uri = None
     Germplasms_uri = None
+    ScObj_uri=None
     silex_API_Client = silex.ApiClient(verbose=False)
     # CONNECTING AS GUEST ON THE SANDBOX BY DEFAULT ~
     silex_API_Client.connect_to_opensilex_ws(identifier='guest@opensilex.org',password='guest',host="https://opensilex.org/sandbox/rest")
@@ -114,7 +115,7 @@ def main():
                             prov_dict=create_images(wd_experience,document_data,document_miappe,silex_API_Client)
                             break
                         elif choix_creation == 7:
-                            create_data(document_data, document_miappe, silex_API_Client,wd_experience)
+                            create_data(document_data, document_miappe, silex_API_Client,wd_experience,ScObj_uri)
                             
                         elif choix_creation == 9:
                             break
