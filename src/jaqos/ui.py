@@ -31,9 +31,9 @@ BANNER = f"""[green]
   [green]\\[+] Please read the README.md file available on the github for guidance.
   
   [white]VERSION-JAQOS[/white]     = [bold green]{__version__} MIAPPE & RICH & ENGLISH[/bold green]
-  [white]VERSION-OpenSilex[/white] = [bold green]1.5.1[/bold green]
+  [white]VERSION-OpenSilex[/white] = [bold green]1.5.1-HOTFIX[/bold green]
   [white]VERSION-MIAPPE[/white]    = [bold green]1.2[/bold green]
-    [white]Made By[/white]         = [bold green]•┈••✦ Edelweiss ✦••┈•[/bold green]
+  [white]Made By[/white]           = [bold green]•┈••✦ Edelweiss ✦••┈•[/bold green]
 """
 
 MENU_CREATION = """
@@ -43,7 +43,7 @@ MENU_CREATION = """
   [yellow]\\[4][/yellow] I want to create scientific objects for this experiment.
   [magenta]\\[5][/magenta] I want to import images. 
   [green]\\[6][/green] All of the above.
-  [green]\\[6][/green] Import tabular data.
+  [green]\\[7][/green] Import tabular data.
   [red]\\[9][/red] I want to return to the main menu...
 """
 
@@ -63,11 +63,7 @@ def menu(etat):
     [red]\\[1][/red] Log in.
     [green]\\[2][/green] Look up experiment info.
     [cyan]\\[3][/cyan] I want to create experiment/factors/scientific object...
-    [yellow]\\[4][/yellow] Lorem.
-    [magenta]\\[5][/magenta] Ipsum.
-    [blue]\\[6][/blue] Dolor.
-    [red]\\[7][/red] Sit.
-    [green]\\[8][/green] Amet.
+    [yellow]\\[4][/yellow] Help.
     [cyan]\\[9][/cyan] Quit the client.
     """
     console.print(Panel(menu_text, title="[bold]Main Menu[/bold]", border_style="cyan", expand=False))
@@ -133,10 +129,11 @@ def show_data_panel(panel_name,exp_data,names_to_attribute_map):
     console.print(Panel(details.strip(), title=f"[bold]{panel_name}[/bold]", border_style="green"))
     return
 
-def show_data_table(panel_name,exp_data,names_to_attribute_map):
-    details=""
-    for name,attribut in names_to_attribute_map.items():
-        value=getattr(exp_data,attribut,"NA")
-        details= details + f"[bold cyan]{name}:[/bold cyan]{value}\n"
-    console.print(Panel(details.strip(), title=f"[bold]{panel_name}[/bold]", border_style="green"))
+def show_data_table_dictionnaire(table_name,dictionnaire):
+    table = Table(title=f"{table_name}", show_header=False)
+    table.add_column("Index", style="cyan")
+    table.add_column("Nom", style="green")
+    for i in dictionnaire:
+        table.add_row(i, dictionnaire[i])
+    console.print(table)
     return

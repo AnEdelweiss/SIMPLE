@@ -6,7 +6,7 @@ import pandas as pd
 import opensilexClientToolsPython as silex
 from rich.progress import track
 from rich.table import Table
-from jaqos.ui import console
+from jaqos.ui import console,show_data_table_dictionnaire
 import datetime
 from pprint import pprint
 
@@ -14,58 +14,50 @@ def create_factor(document_miappe, silex_API_Client):
     #getting experiment name
     dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
-    NameExp = dataframe['name'].dropna().iloc[0]
+    name_exp = dataframe['name'].dropna().iloc[0]
 
     #getting factors
     console.print(f"[cyan]Fichier :[/cyan] {document_miappe}")
     dataframe = pd.read_excel(document_miappe, sheet_name="factors", header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
-    Fac_Api = silex.FactorsApi(silex_API_Client)
-    Factors_uri = {}
-    Factors_Levels_uri = {}
+    fac_api = silex.FactorsApi(silex_API_Client)
+    factors_uri = {}
+    factors_Levels_uri = {}
     
-    Exp_Api = silex.ExperimentsApi(silex_API_Client)
-    Exp_Src = Exp_Api.search_experiments(name=NameExp)["result"]
-    NameExp_uri = {NameExp: Exp_Src[0].uri}
+    exp_api = silex.ExperimentsApi(silex_API_Client)
+    Exp_Src = exp_api.search_experiments(name=name_exp)["result"]
+    name_exp_uri = {name_exp: Exp_Src[0].uri}
 
     for row in track(list(dataframe.to_dict('records')), description="[green]Importing factors...[/green]"):
     
         factor = str(row["name"]).strip() if pd.notna(row["name"]) else ""
         levels = list(str(row["levels"]).strip().split(",")) if pd.notna(row["levels"]) else []
-        description = row["description"]  if pd.notna(row["description"]) else None
+        description_factor = row["description"]  if pd.notna(row["description"]) else None
+        #description_level = row["factor_level_desc"]  if pd.notna(row["factor_level_desc"]) else None
 
-        Fac_Src = Fac_Api.search_factors(name=factor, experiment=NameExp_uri[NameExp])["result"]
+        Fac_Src = fac_api.search_factors(name=factor, experiment=name_exp_uri[name_exp])["result"]
         if Fac_Src:
-            Factors_uri[factor] = Fac_Src[0].uri
+            factors_uri[factor] = Fac_Src[0].uri
         else:
             DTO_list = []
             for level in levels:
                 DTO_list.append(silex.FactorLevelCreationDTO(name=level))  
-            body = silex.FactorCreationDTO(name=str(factor), levels=DTO_list, experiment=NameExp_uri[NameExp], description=str(description))
-            Api_Resp = Fac_Api.create_factor(body=body)
-            Fac_Src = Fac_Api.search_factors(name=factor, experiment=NameExp_uri[NameExp])["result"]
-            Factors_uri[factor] = Fac_Src[0].uri
+            body = silex.FactorCreationDTO(name=str(factor), levels=DTO_list, experiment=name_exp_uri[name_exp], description=str(description_factor))
+            fac_api.create_factor(body=body)
+            Fac_Src = fac_api.search_factors(name=factor, experiment=name_exp_uri[name_exp])["result"]
+            factors_uri[factor] = Fac_Src[0].uri
 
-    for fac_uri in Factors_uri.values():
-        Fac_Get = Fac_Api.get_factor_levels(uri=fac_uri)["result"]
+    for fac_uri in factors_uri.values():
+        Fac_Get = fac_api.get_factor_levels(uri=fac_uri)["result"]
         for lvl in Fac_Get:
-            Factors_Levels_uri[lvl.name] = lvl.uri
+            factors_Levels_uri[lvl.name] = lvl.uri
 
-    table = Table(title="Facteurs", show_header=False)
-    table.add_column("Index", style="cyan")
-    table.add_column("Nom", style="green")
-    for factor in Factors_uri:
-        table.add_row(factor, Factors_uri[factor])
-    console.print(table)
+    table_name="Factors"
+    show_data_table_dictionnaire(table_name,factors_uri)
+    table_name="Factor levels"
+    show_data_table_dictionnaire(table_name,factors_Levels_uri)
 
-    table = Table(title="Niveau facteurs", show_header=False)
-    table.add_column("Index", style="cyan")
-    table.add_column("Nom", style="green")
-    for lvl in Factors_Levels_uri:
-        table.add_row(lvl,Factors_Levels_uri[lvl])
-    console.print(table)
-
-    return Factors_Levels_uri, Factors_uri
+    return factors_Levels_uri, factors_uri
 
 def create_germplasm(document_miappe, silex_API_Client):
     console.print(f"[cyan]Miappe file :[/cyan] {document_miappe}")
@@ -100,20 +92,11 @@ def create_germplasm(document_miappe, silex_API_Client):
                 Germ_Api.create_germplasm(body=body, check_only=False)
                 Germ_Src = Germ_Api.search_germplasm(name=f"^{germ_name}$", rdf_type=germ_type_germplasm)["result"]
             Germplasms_uri[germ_name] = Germ_Src[0].uri
-
-    table = Table(title="Varieties", show_header=False)
-    table.add_column("Index", style="cyan")
-    table.add_column("Nom", style="green")
-    for germplasm in Germplasms_uri:
-        table.add_row(germplasm, Germplasms_uri[germplasm])
-    console.print(table)
-
-    table = Table(title="Species", show_header=False)
-    table.add_column("Index", style="cyan")
-    table.add_column("Nom", style="green")
-    for species in Species_uri:
-        table.add_row((species),Species_uri[species])
-    console.print(table)
+    
+    table_name="Varieties"
+    show_data_table_dictionnaire(table_name,Germplasms_uri)
+    table_name="Species"
+    show_data_table_dictionnaire(table_name,Species_uri)
 
     return Germplasms_uri, Species_uri
 
@@ -242,7 +225,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
             #print(ScObj_Src)
             ScObj_uri.update({row["Tray ID"]: ScObj_Src})
             scobj_cache[row["Tray ID"]] = ScObj_Src
-
+            #Ici je stock les données qui m'interessent dans le dto d'avant dans un dictionnaire, que j'écris après dans le excel
             dtos_to_export.append({
                 "studyId": body.experiment,
                 "obsUnitType": body.rdf_type,
@@ -265,7 +248,8 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
             df_final.to_excel(writer, sheet_name="Observation Unit", index=False)
         console.print("[bold green]The scientific object sheet was sucessfuly created/edited.[/bold green]")
     console.print(f"[bold green]End of import : {len(ScObj_uri)-created_sci_obj} found,{created_sci_obj} created. [/bold green]")
-    #pprint(ScObj_uri)
+    # table_name="Objets sci"
+    # show_data_table_dictionnaire(table_name,ScObj_uri)
     return ScObj_uri
 
 def create_provenances(document_miappe,silex_API_Client,pid="RGB1"):

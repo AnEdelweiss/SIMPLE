@@ -17,7 +17,7 @@ def deconnexion(silex_API_Client) -> bool:
             silex.AuthenticationApi(silex_API_Client).logout
             if 'Authorization' in silex_API_Client.default_headers:
                 del silex_API_Client.default_headers['Authorization']
-            console.print("[bold green]Successfully disconnected[/bold green]")
+            #console.print("[bold green]Successfully disconnected[/bold green]")
         except Exception as e:
             console.print(f"[bold red]Error durring disconnection : {e}[/bold red]")
             return False
@@ -31,7 +31,8 @@ def is_connected(silex_API_Client) -> bool:
 def connexion(login, silex_API_Client) -> bool:
     deconnexion(silex_API_Client)
     try:
-        silex_API_Client.connect_to_opensilex_ws(identifier=login['id'],password=login['mdp'],host=login["instance"])#Connexion avec le login reçu via la CLI
+        silex_API_Client.connect_to_opensilex_ws(**login)#Connexion avec le login reçu via la CLI
+
         return True
 
     except Exception as e:

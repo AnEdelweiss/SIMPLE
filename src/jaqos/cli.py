@@ -22,10 +22,11 @@ def main():
     Factors_Levels_uri = None
     Germplasms_uri = None
     ScObj_uri=None
+    login={"identifier":"guest@opensilex.org","password":"guest","host":"https://opensilex.org/sandbox/rest"}
     silex_API_Client = silex.ApiClient(verbose=False)
     # CONNECTING AS GUEST ON THE SANDBOX BY DEFAULT ~
-    silex_API_Client.connect_to_opensilex_ws(identifier='guest@opensilex.org',password='guest',host="https://opensilex.org/sandbox/rest")
-    etat = "[cyan]Logged in as[/cyan] [bold green]guest@opensilex.org[/bold green] [cyan]on [/cyan] [bold green]Sandbox[/bold green]."
+    silex_API_Client.connect_to_opensilex_ws(**login)
+    etat = f"[cyan]Logged in as[/cyan] [bold green]{login["identifier"]}[/bold green] [cyan]on[/cyan] [bold green]{INSTANCES[login["host"]]}[/bold green]."
     #BOUCLE PRINCIPALE
     while True:
         try:
@@ -105,14 +106,14 @@ def main():
                             ScObj_uri = create_sci_obj(document_data,document_miappe,silex_API_Client)
 
                         elif choix_creation == 5:
-                            prov_dict=create_images(wd_experience,document_data,document_miappe,silex_API_Client)
+                            prov_dict=create_images(wd_experience,document_data,document_miappe,login,silex_API_Client)
                             
                         elif choix_creation == 6:
                             experiment_ok = create_experiment(document_miappe, choix_dossier, silex_API_Client)
                             Germplasms_uri, _ = create_germplasm(document_miappe, silex_API_Client)
                             Factors_Levels_uri, _ = create_factor(document_miappe, silex_API_Client)
                             ScObj_uri = create_sci_obj(document_data,document_miappe,silex_API_Client)
-                            prov_dict=create_images(wd_experience,document_data,document_miappe,silex_API_Client)
+                            prov_dict=create_images(wd_experience,document_data,document_miappe,login,silex_API_Client)
                             break
                         elif choix_creation == 7:
                             create_data(document_data, document_miappe, silex_API_Client,wd_experience,ScObj_uri)
@@ -122,7 +123,7 @@ def main():
                 else:
                     console.print("[bold red]Your are not logged in[/bold red]")
 
-            elif user_input in [4, 5, 6, 7, 8]:
+            elif user_input in [5, 6, 7, 8]:
                 print("under development")
             else:
                 print("Invalid input")

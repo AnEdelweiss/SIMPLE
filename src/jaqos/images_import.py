@@ -7,16 +7,17 @@ import opensilexClientToolsPython as silex
 from rich.progress import track
 from rich.table import Table
 from jaqos.ui import console
+from jaqos.auth import connexion
 from jaqos.data_import import create_sci_obj,create_provenances
 import datetime
 from rich.prompt import Prompt
 
-def create_images(wd_experience,document_data,document_miappe,silex_API_Client):
+def create_images(wd_experience,document_data,document_miappe,login,silex_API_Client):
 
     TimeStamp=link_image_time(document_data)
     prov_dict=create_provenances(document_miappe,silex_API_Client)
     ScObj_uri=create_sci_obj(document_data,document_miappe,silex_API_Client)
-    import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,silex_API_Client)
+    import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,login,silex_API_Client)
     return prov_dict
     
 def get_round_protocol_info(wd_experience):
@@ -74,7 +75,6 @@ def link_image_time(document_data):
     df_data['Measuring Time'] = df_data['Measuring Time'].dt.tz_localize('UTC').dt.tz_convert('Europe/Helsinki').dt.strftime(desired_format)
 
     df_data['Img Name'] = df_data.apply(lambda row: f"{row['Experiment ID']}-{row['Round Order']}-{row['Tray ID']}-{row['PID']}-{row['Angle']:03}", axis=1)
-    #print(df_data.head())
 
     # Get Round Info in Dict 
     TimeStamp={}
@@ -120,14 +120,15 @@ def get_existing_images(dat_api, prov_uri, exp_uri):
         for elts in dat_src
     }
 
-def import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,silex_API_Client, pid="RGB1"):
+def import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,login,silex_API_Client, pid="RGB1"):
     #getting experiment uri
-    dataframe = pd.read_excel(document_miappe, sheet_name=2, header=1)
+    connexion(login, silex_API_Client)
+    dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
     NameExp = dataframe['name'].dropna().iloc[0]
+    facility = str(dataframe['facilities'].iloc[0]).replace(",","_").replace(" ","_")
     Exp_Src = silex.ExperimentsApi(silex_API_Client).search_experiments(name=NameExp)["result"]
     exp_uri = Exp_Src[0].uri
-    facility = str(dataframe['facilities'].iloc[0]).replace(",","_")
     #Liste des images
     wd_img = os.path.join(wd_experience)
     ls_files = []
@@ -154,7 +155,7 @@ def import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,si
     CamPos,PlantMask=get_round_protocol_info(wd_experience)
     
     dat_api = silex.DataApi(silex_API_Client)
-    # 1. Traitement des images FishEyeCorrected (FEC)
+    #Traitement des images FishEyeCorrected (FEC)
 
     prov_fec = prov_dict[f'{facility}_{pid}_FishEyeCorrectedImages']
     corr_data = [parse_image_filename(f, TimeStamp, prov_fec, pid) for f in ls_fec]
@@ -172,7 +173,7 @@ def import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,si
     
     for img in track(corr_to_upload, description="[bold green]Uploading FEC[/bold green]"):
         if datetime.datetime.now() > timelimit:
-            silex_API_Client.connect_to_opensilex_ws(identifier='guest@opensilex.org',password='guest',host="https://opensilex.org/sandbox/rest")##TEMPORAIRE
+            connexion(login, silex_API_Client)
             timelimit = datetime.datetime.now() + datetime.timedelta(minutes=30)
 
         desc = {
@@ -191,7 +192,7 @@ def import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,si
             }
         }
         dat_api.post_data_file(description=json.dumps(desc), file=img["Path"])
-    # 2. Création du dictionnaire de liaison FEC -> FEM
+    #Création du dictionnaire de liaison FEC -> FEM
     fec_uri_map = {
         (elts.target, elts._date): elts.uri
         for elts in dat_api.get_data_file_descriptions_by_search(
@@ -199,8 +200,7 @@ def import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,si
         )["result"]
     }
 
-
-    # 3. Traitement des images FishEyeMasked (FEM)
+    #Traitement des images FishEyeMasked (FEM)
     prov_fem = prov_dict[f'{facility}_{pid}_FishEyeMaskedImages']
     mask_data = [parse_image_filename(f, TimeStamp, prov_fem, pid) for f in ls_fem]
     
@@ -221,7 +221,7 @@ def import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,si
 
     for img in track(mask_to_upload, description="[bold blue]Uploading FEM[/bold blue]"):
         if datetime.datetime.now() > timelimit:
-            silex_API_Client.connect_to_opensilex_ws(identifier='guest@opensilex.org',password='guest',host="https://opensilex.org/sandbox/rest")#Temporaire
+            connexion(login, silex_API_Client)
             timelimit = datetime.datetime.now() + datetime.timedelta(minutes=30)
 
         settings = {"Camera Angle": img["Angle"]}
