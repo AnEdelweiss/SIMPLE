@@ -58,6 +58,6 @@ Everything should work !
 - ~~English translation.~~
 - ~~Photo upploadng.~~
 - Make a 'help' feature in the CLI
-- Data upploading.
+- ~~Data upploading.~~
 - Generalization : (changing the hardcoded provenances and PID, create the output document and the output folder in the experiment directory etc...)
 - Automatization(?)
