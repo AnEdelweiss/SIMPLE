@@ -11,7 +11,6 @@ from jaqos.data_import import create_sci_obj,create_provenances
 import datetime
 from rich.prompt import Prompt
 
-
 def create_images(wd_experience,document_data,document_miappe,silex_API_Client):
 
     TimeStamp=link_image_time(document_data)
