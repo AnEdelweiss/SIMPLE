@@ -124,3 +124,19 @@ def choix_repertoire_travail():
                     console.print("[bold red]Incorrect selection... :([/bold red]")
         else:
             console.print("[bold red]Incorrect selection... :([/bold red]")
+
+def show_data_panel(panel_name,exp_data,names_to_attribute_map):
+    details=""
+    for name,attribut in names_to_attribute_map.items():
+        value=getattr(exp_data,attribut,"NA")
+        details= details + f"[bold cyan]{name}:[/bold cyan]{value}\n"
+    console.print(Panel(details.strip(), title=f"[bold]{panel_name}[/bold]", border_style="green"))
+    return
+
+def show_data_table(panel_name,exp_data,names_to_attribute_map):
+    details=""
+    for name,attribut in names_to_attribute_map.items():
+        value=getattr(exp_data,attribut,"NA")
+        details= details + f"[bold cyan]{name}:[/bold cyan]{value}\n"
+    console.print(Panel(details.strip(), title=f"[bold]{panel_name}[/bold]", border_style="green"))
+    return

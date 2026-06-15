@@ -1,25 +1,26 @@
 import sys
 import pandas as pd
 import opensilexClientToolsPython as silex
-from jaqos.ui import console, Prompt, Panel
+from jaqos.ui import console, Prompt, show_data_panel
 
 def find_Exp(silex_API_Client):
-    Exp_Api = silex.ExperimentsApi(silex_API_Client)
-    name_Exp = Prompt.ask("[cyan]what experience are you looking for ?[/cyan]")
+    
+    name_exp = Prompt.ask("[cyan]what experience are you looking for ?[/cyan]")
     with console.status("[bold green]Searching..."):
-        exp_Src = Exp_Api.search_experiments(name=name_Exp)
-    if not exp_Src["result"]:
-        Prompt.ask("[bold red]No experiment with that name were found. :( [/bold red]")
+        exp_data=api_find_experiment_by_name(silex_API_Client,name_exp)
+    if not exp_data:
+        Prompt.ask("[bold red]No experiment with that name were found. :( [/bold red]\nPress any key to go back to the main menu")
         return
-    exp_data = exp_Src["result"][0]
-    details = f"""
-    [bold cyan]URI:[/bold cyan] {exp_data.uri}
-    [bold cyan]Name:[/bold cyan] {exp_data.name}
-    [bold cyan]Description:[/bold cyan] {exp_data.description}
-    [bold cyan]Objectives:[/bold cyan] {exp_data.objective}
-    """
-    console.print(Panel(details, title="[bold]Experiment infos[/bold]", border_style="green"))
+    exp_data=exp_data[0]
+    names_to_attribute_map= {"URI":"uri","Name":"name","Description":"description","Objectives":"objective"}
+    panel_name="Experiment infos"
+    show_data_panel(panel_name,exp_data,names_to_attribute_map)
     Prompt.ask("Press any key to go back to the main menu")
+
+def api_find_experiment_by_name(silex_API_Client,name_exp):
+    exp_api = silex.ExperimentsApi(silex_API_Client)
+    exp_data=exp_api.search_experiments(name=name_exp)
+    return exp_data["result"]
 
 def create_experiment(document_miappe, choix_dossier, silex_API_Client):
     console.print(f"[cyan]File : [/cyan] {document_miappe}")

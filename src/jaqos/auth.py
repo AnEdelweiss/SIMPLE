@@ -7,6 +7,7 @@ INSTANCES = {
     "https://opensilex.org/sandbox/rest": "Sandbox",
     "https://phis.emphasis.fedcloud.eu/uh/rest": "Helsinki/UH",
     "https://opensilex.org/demo2/rest": "test1.5.1"
+    
 }
 
 #On deconnecte le client avant toute nouvelle connexion
