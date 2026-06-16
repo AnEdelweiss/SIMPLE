@@ -1,7 +1,6 @@
 import sys
 import os
 import json
-from lxml import etree as ET
 import pandas as pd
 import opensilexClientToolsPython as silex
 from rich.progress import track
@@ -22,42 +21,58 @@ def create_factor(document_miappe, silex_API_Client):
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
     fac_api = silex.FactorsApi(silex_API_Client)
     factors_uri = {}
-    factors_Levels_uri = {}
+    factors_levels_uri = {}
     
     exp_api = silex.ExperimentsApi(silex_API_Client)
     Exp_Src = exp_api.search_experiments(name=name_exp)["result"]
     name_exp_uri = {name_exp: Exp_Src[0].uri}
 
+    dico_factor={}
+
     for row in track(list(dataframe.to_dict('records')), description="[green]Importing factors...[/green]"):
     
         factor = str(row["name"]).strip() if pd.notna(row["name"]) else ""
-        levels = list(str(row["levels"]).strip().split(",")) if pd.notna(row["levels"]) else []
+        factor_level = str(row["levels"]).strip() if pd.notna(row["levels"]) else None
         description_factor = row["description"]  if pd.notna(row["description"]) else None
-        #description_level = row["factor_level_desc"]  if pd.notna(row["factor_level_desc"]) else None
+        description_level = row["factor_level_desc"]  if pd.notna(row["factor_level_desc"]) else None
 
-        Fac_Src = fac_api.search_factors(name=factor, experiment=name_exp_uri[name_exp])["result"]
+        if factor not in dico_factor:
+                    dico_factor[factor] = {"description": description_factor, "levels": []}
+                
+        if factor_level:
+            dico_factor[factor]["levels"].append({
+                "name": factor_level, 
+                "description": description_level
+            })
+
+    for factor_name, factor_data in dico_factor.items():
+        Fac_Src = fac_api.search_factors(name=factor_name, experiment=name_exp_uri[name_exp])["result"]
+
         if Fac_Src:
-            factors_uri[factor] = Fac_Src[0].uri
+            factors_uri[factor_name] = Fac_Src[0].uri
         else:
-            DTO_list = []
-            for level in levels:
-                DTO_list.append(silex.FactorLevelCreationDTO(name=level))  
-            body = silex.FactorCreationDTO(name=str(factor), levels=DTO_list, experiment=name_exp_uri[name_exp], description=str(description_factor))
+
+            DTO_list = [
+                silex.FactorLevelCreationDTO(name=lvl["name"], description=lvl["description"])
+                for lvl in factor_data["levels"]
+            ]
+
+            body = silex.FactorCreationDTO(name=factor_name, levels=DTO_list, experiment=name_exp_uri[name_exp], description=factor_data["description"])
             fac_api.create_factor(body=body)
-            Fac_Src = fac_api.search_factors(name=factor, experiment=name_exp_uri[name_exp])["result"]
-            factors_uri[factor] = Fac_Src[0].uri
+            Fac_Src = fac_api.search_factors(name=factor_name, experiment=name_exp_uri[name_exp])["result"]
+            factors_uri[factor_name] = Fac_Src[0].uri
 
     for fac_uri in factors_uri.values():
-        Fac_Get = fac_api.get_factor_levels(uri=fac_uri)["result"]
-        for lvl in Fac_Get:
-            factors_Levels_uri[lvl.name] = lvl.uri
+        fac_get = fac_api.get_factor_levels(uri=fac_uri)["result"]
+        for lvl in fac_get:
+            factors_levels_uri[lvl.name] = lvl.uri
 
     table_name="Factors"
     show_data_table_dictionnaire(table_name,factors_uri)
     table_name="Factor levels"
-    show_data_table_dictionnaire(table_name,factors_Levels_uri)
+    show_data_table_dictionnaire(table_name,factors_levels_uri)
 
-    return factors_Levels_uri, factors_uri
+    return factors_levels_uri, factors_uri
 
 def create_germplasm(document_miappe, silex_API_Client):
     console.print(f"[cyan]Miappe file :[/cyan] {document_miappe}")
@@ -123,13 +138,13 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     api_response = silex.ExperimentsApi(silex_API_Client).get_available_factors(Exp_Src["result"][0].uri, )
     #print(api_response["result"])
     if api_response["result"]:
-        Factors_Levels_uri={}
+        factors_levels_uri={}
         for resultat in api_response["result"]:
             for factor_level in resultat.levels :
-                Factors_Levels_uri[factor_level.name]=factor_level.uri
-    #console.print(f"facteurs liés à l'experience trouvés : {Factors_Levels_uri}")
+                factors_levels_uri[factor_level.name]=factor_level.uri
+    #console.print(f"facteurs liés à l'experience trouvés : {factors_levels_uri}")
     else :
-        Factors_Levels_uri,_= create_factor(document_miappe, silex_API_Client)
+        factors_levels_uri,_= create_factor(document_miappe, silex_API_Client)
 
     # création des relations
     if Exp_Src is None:
@@ -196,17 +211,17 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
                     Relations_ScObj.append(relation_temp)
             #on récupère les uri des niveaux de facteur
 
-            if Factors_Levels_uri and row["Factor Level"]:
-                if row["Factor Level"] not in Factors_Levels_uri:
+            if factors_levels_uri and row["Factor Level"]:
+                if row["Factor Level"] not in factors_levels_uri:
                     console.print("[bold red]\n The factor level was not found.\n Starting factor import from the MIAPPE document\n[/bold red]")
-                    Factors_Levels_uri, _ = create_factor(document_miappe, silex_API_Client)
+                    factors_levels_uri, _ = create_factor(document_miappe, silex_API_Client)
                     
-                    if row["Factor Level"] not in Factors_Levels_uri:
+                    if row["Factor Level"] not in factors_levels_uri:
                         console.print(f"[bold red] This factor level : [cyan]{row['Factor Level']}[/cyan] cannot be found, please check for typos or if they really exist.[/bold red]")
                         console.print("[bold red] Exiting client [/bold red]")
                         sys.exit()
                 else:
-                    factor_level_value = Factors_Levels_uri.get(row["Factor Level"])
+                    factor_level_value = factors_levels_uri.get(row["Factor Level"])
                     relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasFactorLevel", value=factor_level_value)
                     Relations_ScObj.append(relation_temp)
 
