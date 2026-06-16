@@ -46,6 +46,38 @@ MENU_CREATION = """
   [green]\\[7][/green] Import tabular data.
   [red]\\[9][/red] I want to return to the main menu...
 """
+HELP_MENU="""
+[bold red]Q. : What is JAQOS?[/bold red]
+[cyan]
+A. : A Command Line Interface coded in python with a focus on ease of use, rapidity and flexibility.
+This tool can help researchers uppload MIAPPE compliant phenotyping data on OpenSilex instances without any efforts.
+Allowing them to keep germplasm banks up to date, to create experiments, create or add scientific objects to an experiment, add pictures, DATA and more.
+[/cyan]
+[bold red]Q. : How can I use JAQOS ?
+[cyan] 
+A. : If you don't know yet how to use JAQOS, please follow this link with the documentations : https://github.com/AnEdelweiss/JAQOS/blob/master/README.md 
+
+Here is a quick start :
+
+1. Connect to the phis instance of your liking : 
+    on the main menu, you can press '1' then enter.
+    You can now select an instance, input your username and you password. Voilà, you are logged in !
+
+2. Search infos about an experiment : 
+    On the main menu, press '2' then enter.
+    You can now enter the name of the experiment you are looking for!
+
+3. Import data on PHIS : 
+    On the main menu, press '3' then enter.
+    You can now follow the instructions and enter the paths to your folders and files.
+    (The recommended/correct arborescence is dispayed on the github.)
+    You can now create anything, ranging from experiments to scientific objects.
+    Please be careful when filling the MIAPPE file, as this one of the most crucial steps.
+[/cyan]
+
+"""
+
+
 
 def menu(etat):
     menu_text = f"""[green]

@@ -5,7 +5,7 @@ from rich.prompt import Prompt, IntPrompt
 from rich.panel import Panel
 from rich.table import Table
 
-from jaqos.ui import console, BANNER, MENU_CREATION, menu, choix_repertoire_travail
+from jaqos.ui import console, BANNER, MENU_CREATION, menu, choix_repertoire_travail,HELP_MENU
 from jaqos.auth import INSTANCES, connexion, is_connected
 from jaqos.experiment import find_Exp, create_experiment
 from jaqos.data_import import create_factor, create_germplasm, create_sci_obj,create_data
@@ -90,7 +90,7 @@ def main():
                             console.print("[cyan]You chose to import data on OpenSilex[/cyan]")
                             wd_experience, choix_dossier, document_miappe,document_data = choix_repertoire_travail()
 
-                        console.print(Panel(MENU_CREATION, title="[bold]Experiment Menu[/bold]", border_style="cyan"))
+                        console.print(Panel(MENU_CREATION, title="[bold]Experiment Menu[/bold]", border_style="green"))
                         choix_creation = IntPrompt.ask("[green]Please make your choice[/green]")
 
                         if choix_creation == 1:
@@ -122,12 +122,14 @@ def main():
                             break
                 else:
                     console.print("[bold red]Your are not logged in[/bold red]")
+            elif user_input == 4:
+                console.print(Panel(HELP_MENU, title="[bold]Help Menu[/bold]", border_style="cyan", expand=False))
 
             elif user_input in [5, 6, 7, 8]:
                 print("under development")
             else:
                 print("Invalid input")
-
+            
         except Exception as e:
             print(f'There was an error : :\n{e}')
         except KeyboardInterrupt:
