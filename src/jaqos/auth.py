@@ -1,7 +1,8 @@
 import opensilexClientToolsPython as silex
-from jaqos.ui import console, Prompt
+from jaqos.ui import console, Prompt,IntPrompt,Table
 import json
-
+import requests
+import sys
 # Initiatialisation des différentes instances
 INSTANCES = {
     "https://opensilex.org/sandbox/rest": "Sandbox",
@@ -10,6 +11,28 @@ INSTANCES = {
     
 }
 
+def get_login():
+    console.print("[cyan]Connection :[/cyan]")
+    login = {}
+    liste_url = list(INSTANCES.keys())
+    liste_instances = list(INSTANCES.values())
+
+    table = Table(title="Available instances", show_header=False)
+    table.add_column("Index", style="cyan")
+    table.add_column("Nom", style="green")
+    for index, nom in enumerate(liste_instances):
+        table.add_row(str(index), nom)
+    console.print(table)
+    while True:
+        temp_Inst = IntPrompt.ask(f"[green]\\[+][/green][cyan]On which instance would you like to log in (0-{len(liste_instances)-1})[/cyan]")
+        if 0<=temp_Inst<=len(liste_instances)-1:
+            login["host"] = liste_url[temp_Inst]
+            break
+        else:
+            console.print(f"[red][bold]Please type a number between [white]0[/white] and [white]{len(liste_instances)-1}[/white][/red][/bold]")
+    login["identifier"] = Prompt.ask(f"[green]\\[+][/green]  [cyan]Username/mail on [/cyan] [green]{INSTANCES[login['host']]}[/green]")
+    login["password"] = Prompt.ask("[green]\\[+][/green] [cyan] Password[/cyan] [red](it is invisible for security reasons)[/red]", password=True)
+    return login 
 #On deconnecte le client avant toute nouvelle connexion
 def deconnexion(silex_API_Client) -> bool:
     if 'Authorization' in silex_API_Client.default_headers:
@@ -22,6 +45,20 @@ def deconnexion(silex_API_Client) -> bool:
             console.print(f"[bold red]Error durring disconnection : {e}[/bold red]")
             return False
     return True
+#Je verifie que l'utilisateur a accès à internet.
+def check_connection_internet():
+    # initializing URL
+    url = "https://www.aube-asso.org/"
+    timeout = 10
+    try:
+        # requesting URL
+        request = requests.get(url,
+                            timeout=timeout)
+        return
+    # catching exception
+    except (requests.ConnectionError,
+            requests.Timeout) as exception:
+        sys.exit(f"You are not connected to internet :\n {exception}")    
 #Check rapide de la connexion
 def is_connected(silex_API_Client) -> bool:
     if silex_API_Client is not None and 'Authorization' in silex_API_Client.default_headers:

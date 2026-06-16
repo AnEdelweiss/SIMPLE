@@ -72,12 +72,8 @@ Here is a quick start :
     You can now follow the instructions and enter the paths to your folders and files.
     (The recommended/correct arborescence is dispayed on the github.)
     You can now create anything, ranging from experiments to scientific objects.
-    Please be careful when filling the MIAPPE file, as this one of the most crucial steps.
-[/cyan]
-
+    Please be careful when filling the MIAPPE file, as this one of the most crucial steps.[/cyan]
 """
-
-
 
 def menu(etat):
     menu_text = f"""[green]

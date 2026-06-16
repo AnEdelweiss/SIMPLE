@@ -6,12 +6,13 @@ from rich.panel import Panel
 from rich.table import Table
 
 from jaqos.ui import console, BANNER, MENU_CREATION, menu, choix_repertoire_travail,HELP_MENU
-from jaqos.auth import INSTANCES, connexion, is_connected
+from jaqos.auth import INSTANCES, get_login,connexion, is_connected,check_connection_internet
 from jaqos.experiment import find_Exp, create_experiment
 from jaqos.data_import import create_factor, create_germplasm, create_sci_obj,create_data
 from jaqos.images_import import create_images
 
 def main():
+    check_connection_internet()
     console.print(BANNER)
     console.print('[bold][green]______________________________________________________________________________________[/green][/bold]\n')
     Prompt.ask("Press a key to start")
@@ -37,30 +38,10 @@ def main():
                 sys.exit(0)
 
             elif user_input == 1:
-                console.print("[cyan]Connection :[/cyan]")
-                login = {}
-                liste_url = list(INSTANCES.keys())
-                liste_instances = list(INSTANCES.values())
-        
-                table = Table(title="Available instances", show_header=False)
-                table.add_column("Index", style="cyan")
-                table.add_column("Nom", style="green")
-                for index, nom in enumerate(liste_instances):
-                    table.add_row(str(index), nom)
-                console.print(table)
-                while True:
-                    temp_Inst = IntPrompt.ask(f"[green]\\[+][/green]On which instance would you like to log in (0-{len(liste_instances)-1})")
-                    if 0<=temp_Inst<=len(liste_instances)-1:
-                        login["instance"] = liste_url[temp_Inst]
-                        break
-                    else:
-                        console.print(f"[red][bold]Please type a number between [white]0[/white] and [white]{len(liste_instances)-1}[/white][/red][/bold]")
-                login["id"] = Prompt.ask(f"[green]\\[+][/green] Username/mail on : {INSTANCES[login['instance']]}")
-                login["mdp"] = Prompt.ask("[green]\\[+][/green] Password", password=True)
-                
+                login= get_login()
                 connecte = connexion(login, silex_API_Client)
                 if connecte:
-                    etat = f"[cyan]Your are logged in as[/cyan] [bold green]{login['id']}[/bold green] [cyan]on[/cyan] [bold green]{liste_instances[temp_Inst]}[/bold green]."
+                    etat = f"[cyan]Your are logged in as[/cyan] [bold green]{login['identifier']}[/bold green] [cyan]on[/cyan] [bold green]{INSTANCES[login['host']]}[/bold green]."
                 else:
                     etat = "[bold red]You are not logged in, please try again...[/bold red]"
 
@@ -124,7 +105,7 @@ def main():
                     console.print("[bold red]Your are not logged in[/bold red]")
             elif user_input == 4:
                 console.print(Panel(HELP_MENU, title="[bold]Help Menu[/bold]", border_style="cyan", expand=False))
-
+                Prompt.ask("Press any key to go back to the main menu")
             elif user_input in [5, 6, 7, 8]:
                 print("under development")
             else:
