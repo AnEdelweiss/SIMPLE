@@ -57,7 +57,8 @@ Everything should work !
 - ~~Using the rich library.~~
 - ~~English translation.~~
 - ~~Photo upploadng.~~
-- Make a 'help' feature in the CLI
+- ~~Make a 'help' feature in the CLI~~
 - ~~Data upploading.~~
 - Generalization : (changing the hardcoded provenances and PID, create the output document and the output folder in the experiment directory etc...)
 - Automatization(?)
+
