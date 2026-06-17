@@ -6,6 +6,7 @@ import opensilexClientToolsPython as silex
 from rich.progress import track
 from rich.table import Table
 from jaqos.ui import console,show_data_table_dictionnaire
+from jaqos.auth import connexion
 import datetime
 from pprint import pprint
 
@@ -126,8 +127,8 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     BioMat_Type=list(map(str.strip, BioMat_Type.split(",")))
     #Ici on récupère les données tabulaires pour créer les objets scientifiques. on choisit de lire du début du doc jusqu'au PID (à adapter)
     df_data = pd.read_excel(document_data)
-    PID = df_data['PID'].unique()[0]
-    console.print(f'[bold cyan]PID found:[/bold cyan] {PID}')
+    pid = df_data['PID'].unique()[0]
+    console.print(f'[bold cyan]PID found:[/bold cyan] {pid}')
     #on garde seulement les Tray ID uniques
     df_ScObj = df_data.loc[:, "Tray ID":"PID"].drop_duplicates(subset=["Tray ID"])
     Relations_Gen = []
@@ -267,12 +268,15 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     # show_data_table_dictionnaire(table_name,ScObj_uri)
     return ScObj_uri
 
-def create_provenances(document_miappe,silex_API_Client,pid="RGB1"):
+def create_provenances(document_data,document_miappe,silex_API_Client):
     #on cherche le MIAPPE pour avoir les facilities( et dans le futur le pid aussi surement)
     dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
     facility = str(dataframe['facilities'].iloc[0]).replace(",","_").replace(" ","_")
     dat_api = silex.DataApi(silex_API_Client)
+    df_data = pd.read_excel(document_data)
+    pid = df_data['PID'].unique()[0]
+    console.print(f'[bold cyan]PID found:[/bold cyan] {pid}')
     prov_dict = {}
     # on décrit les 3 différentes provenances
     provenance_configs = {
@@ -330,36 +334,35 @@ def create_provenances(document_miappe,silex_API_Client,pid="RGB1"):
     #console.print(prov_dict)
     return prov_dict
 
-def create_data(document_data, document_miappe, silex_API_Client,wd_experience):
-
-    prov_dict=create_provenances(document_miappe,silex_API_Client,pid="RGB1")
+def create_data(document_data,document_miappe,login,wd_experience,silex_API_Client):
+    prov_dict=create_provenances(document_data,document_miappe,silex_API_Client)
     #ON TROUVE LES URI DES OBJETS SCIENTIFIQUES
 
     ScObj_uri=create_sci_obj(document_data,document_miappe,silex_API_Client)
 
-
     #JE RECUPERE LE NOM ET L'URI DE L'ÉXPERIENCE
     dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
     dataframe.drop(dataframe.columns[dataframe.columns.str.contains('unnamed', case=False)], axis=1, inplace=True)
+    facility = str(dataframe['facilities'].iloc[0]).replace(",","_").replace(" ","_")
     NameExp = dataframe['name'].dropna().iloc[0]
     Exp_Src = silex.ExperimentsApi(silex_API_Client).search_experiments(name=NameExp)
     NameExp_uri = {NameExp: Exp_Src["result"][0].uri}
-    # ÇA FINIT ICI
-
+    #JE RECUPERE LE PID
+    df_data = pd.read_excel(document_data)
+    pid = df_data['PID'].unique()[0]
+    console.print(f'[bold cyan]PID found:[/bold cyan] {pid}')
     # 1. Formatage des données
     desired_format = "%Y-%m-%dT%H:%M:%S%z"
     df_data = pd.read_excel(document_data)
     df_data['Measuring Date'] = df_data['Measuring Date'].dt.date
     df_data['Measuring Time'] = df_data['Measuring Time'].dt.tz_localize('UTC').dt.tz_convert('Europe/Helsinki').dt.strftime(desired_format)
-
     # 2. Lecture du excel
     dataframe = pd.read_excel(document_miappe, sheet_name="mapping_table_variables", header=0)
     Morpho_Info={}
     for row in dataframe.to_dict('records'):
         Morpho_Info[row["column_in_data_table"]]=row["opensilex_variable_name"]
-
     # ON RECUPERE LES DONNÉES DES IMAGES QU'ON A UPLOAD PRECEDEMMENT
-    prov='ModularNaPPI_RGB1_FishEyeMaskedImages'
+    prov=f'{facility}_{pid}_FishEyeMaskedImages'
 
     Dat_Api = silex.DataApi(silex_API_Client)
     Dat_Src = Dat_Api.get_data_file_descriptions_by_search(provenances=[prov_dict[prov]], experiments=[NameExp_uri[NameExp]], page_size=100000)["result"]
@@ -379,10 +382,8 @@ def create_data(document_data, document_miappe, silex_API_Client,wd_experience):
     # print(Mask_uri[0])
     # print(len(Mask_uri))
 
-    #LA C'EST TOUTE LA LOGIQUE D'IMPORTATION DES OBJETS SCIENTIFIQUES
-
-    prov='ModularNaPPI_RGB1_MorphoParameters'
-    silex_API_Client.connect_to_opensilex_ws(identifier='guest@opensilex.org',password='guest',host="https://opensilex.org/sandbox/rest")##TEMPORAIRE
+    prov=f'{facility}_{pid}_MorphoParameters'
+    connexion(login, silex_API_Client)
 
     timelimit = datetime.datetime.now()+datetime.timedelta(minutes=30)
 
@@ -430,7 +431,7 @@ def create_data(document_data, document_miappe, silex_API_Client,wd_experience):
                                                 experiments = [NameExp_uri[NameExp]]))
                     bodies.append(body)
                     if datetime.datetime.now() > timelimit:
-                        silex_API_Client.connect_to_opensilex_ws(identifier='guest@opensilex.org',password='guest',host="https://opensilex.org/sandbox/rest")##TEMPORAIRE
+                        connexion(login, silex_API_Client)
 
                         Dat_Api = silex.DataApi(silex_API_Client)
                         timelimit = datetime.datetime.now()+datetime.timedelta(minutes=30)

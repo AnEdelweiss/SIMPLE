@@ -52,13 +52,11 @@ def check_connection_internet():
     timeout = 10
     try:
         # requesting URL
-        request = requests.get(url,
-                            timeout=timeout)
+        requests.get(url,timeout=timeout)
         return
     # catching exception
-    except (requests.ConnectionError,
-            requests.Timeout) as exception:
-        sys.exit(f"You are not connected to internet :\n {exception}")    
+    except (requests.ConnectionError,requests.Timeout):
+        sys.exit("You are not connected to internet :( \n Please check your connection and try again.")    
 #Check rapide de la connexion
 def is_connected(silex_API_Client) -> bool:
     if silex_API_Client is not None and 'Authorization' in silex_API_Client.default_headers:

@@ -23,7 +23,12 @@ def main():
     Factors_Levels_uri = None
     Germplasms_uri = None
     ScObj_uri=None
-    login={"identifier":"guest@opensilex.org","password":"guest","host":"https://opensilex.org/sandbox/rest"}
+    #setting default login, here guest on sandbox
+    login={
+        "identifier":"guest@opensilex.org",
+        "password":"guest",
+        "host":"https://opensilex.org/sandbox/rest"
+        }
     silex_API_Client = silex.ApiClient(verbose=False)
     # CONNECTING AS GUEST ON THE SANDBOX BY DEFAULT ~
     silex_API_Client.connect_to_opensilex_ws(**login)
@@ -53,6 +58,7 @@ def main():
 
             elif user_input == 3:
                 if is_connected(silex_API_Client):
+                    #Gestion du repertoire de travail
                     if choix_dossier:
                         changement_repertoire = Prompt.ask(f"Would you like to continue to work on this experiment ? [bold]{choix_dossier}[/bold] ?", choices=["y", "n"], default="y")
                         if changement_repertoire == 'n':
@@ -70,7 +76,7 @@ def main():
                         if choix_dossier is None:
                             console.print("[cyan]You chose to import data on OpenSilex[/cyan]")
                             wd_experience, choix_dossier, document_miappe,document_data = choix_repertoire_travail()
-
+                    #Gestion du repertoire de travail
                         console.print(Panel(MENU_CREATION, title="[bold]Experiment Menu[/bold]", border_style="green"))
                         choix_creation = IntPrompt.ask("[green]Please make your choice[/green]")
 
@@ -78,7 +84,7 @@ def main():
                             experiment_ok = create_experiment(document_miappe, choix_dossier, silex_API_Client)
 
                         elif choix_creation == 2:
-                            Germplasms_uri, _ = create_germplasm(document_miappe, silex_API_Client)
+                            Germplasms_uri, Species_uri = create_germplasm(document_miappe, silex_API_Client)
 
                         elif choix_creation == 3: 
                             Factors_Levels_uri, _ = create_factor(document_miappe, silex_API_Client)
@@ -90,21 +96,21 @@ def main():
                             prov_dict=create_images(wd_experience,document_data,document_miappe,login,silex_API_Client)
                             
                         elif choix_creation == 6:
+                            create_data(document_data, document_miappe,login,wd_experience,silex_API_Client)
+                        elif choix_creation == 7:
                             experiment_ok = create_experiment(document_miappe, choix_dossier, silex_API_Client)
                             Germplasms_uri, _ = create_germplasm(document_miappe, silex_API_Client)
                             Factors_Levels_uri, _ = create_factor(document_miappe, silex_API_Client)
                             ScObj_uri = create_sci_obj(document_data,document_miappe,silex_API_Client)
                             prov_dict=create_images(wd_experience,document_data,document_miappe,login,silex_API_Client)
+                            create_data(document_data, document_miappe,login,wd_experience,silex_API_Client)
                             break
-                        elif choix_creation == 7:
-                            create_data(document_data, document_miappe, silex_API_Client,wd_experience,ScObj_uri)
-                            
                         elif choix_creation == 9:
                             break
                 else:
                     console.print("[bold red]Your are not logged in[/bold red]")
             elif user_input == 4:
-                console.print(Panel(HELP_MENU, title="[bold]Help Menu[/bold]", border_style="cyan", expand=False))
+                console.print(Panel(HELP_MENU, title="[bold]Help Menu[/bold]", border_style="yellow", expand=False))
                 Prompt.ask("Press any key to go back to the main menu")
             elif user_input in [5, 6, 7, 8]:
                 print("under development")

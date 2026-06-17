@@ -15,9 +15,9 @@ from rich.prompt import Prompt
 def create_images(wd_experience,document_data,document_miappe,login,silex_API_Client):
 
     TimeStamp=link_image_time(document_data)
-    prov_dict=create_provenances(document_miappe,silex_API_Client)
+    prov_dict=create_provenances(document_data,document_miappe,silex_API_Client)
     ScObj_uri=create_sci_obj(document_data,document_miappe,silex_API_Client)
-    import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,login,silex_API_Client)
+    import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dict,ScObj_uri,login,silex_API_Client)
     return prov_dict
     
 def get_round_protocol_info(wd_experience):
@@ -82,7 +82,7 @@ def link_image_time(document_data):
         TimeStamp.update({row["Img Name"]: row['Measuring Time']})
     return TimeStamp
 
-def parse_image_filename(filepath, timestamp_dict, prov_uri, pid="RGB1"):
+def parse_image_filename(filepath, timestamp_dict, prov_uri,pid):
     #Extrait metadata depuis le nom de fichier.
     filename = os.path.basename(filepath).split(".")[0]
     filename_clean = filename.replace("_FishEyeCorrected", "").replace("_FishEyeMasked", "")
@@ -120,7 +120,7 @@ def get_existing_images(dat_api, prov_uri, exp_uri):
         for elts in dat_src
     }
 
-def import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,login,silex_API_Client, pid="RGB1"):
+def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dict,ScObj_uri,login,silex_API_Client):
     #getting experiment uri
     connexion(login, silex_API_Client)
     dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
@@ -129,6 +129,10 @@ def import_images(document_miappe,wd_experience,TimeStamp,prov_dict,ScObj_uri,lo
     facility = str(dataframe['facilities'].iloc[0]).replace(",","_").replace(" ","_")
     Exp_Src = silex.ExperimentsApi(silex_API_Client).search_experiments(name=NameExp)["result"]
     exp_uri = Exp_Src[0].uri
+    #GETTING PID
+    df_data = pd.read_excel(document_data)
+    pid = df_data['PID'].unique()[0]
+    console.print(f'[bold cyan]PID found:[/bold cyan] {pid}')
     #Liste des images
     wd_img = os.path.join(wd_experience)
     ls_files = []

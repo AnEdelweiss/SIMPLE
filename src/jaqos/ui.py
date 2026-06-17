@@ -42,19 +42,19 @@ MENU_CREATION = """
   [cyan]\\[3][/cyan] I want to create factors with factor levels for this experiment.
   [yellow]\\[4][/yellow] I want to create scientific objects for this experiment.
   [magenta]\\[5][/magenta] I want to import images. 
-  [green]\\[6][/green] All of the above.
-  [green]\\[7][/green] Import tabular data.
+  [green]\\[6][/green] Import tabular data.
+  [green]\\[7][/green] All of the above.
   [red]\\[9][/red] I want to return to the main menu...
 """
 HELP_MENU="""
 [bold red]Q. : What is JAQOS?[/bold red]
-[cyan]
+[yellow]
 A. : A Command Line Interface coded in python with a focus on ease of use, rapidity and flexibility.
 This tool can help researchers uppload MIAPPE compliant phenotyping data on OpenSilex instances without any efforts.
 Allowing them to keep germplasm banks up to date, to create experiments, create or add scientific objects to an experiment, add pictures, DATA and more.
-[/cyan]
+[/yellow]
 [bold red]Q. : How can I use JAQOS ?
-[cyan] 
+[yellow] 
 A. : If you don't know yet how to use JAQOS, please follow this link with the documentations : https://github.com/AnEdelweiss/JAQOS/blob/master/README.md 
 
 Here is a quick start :
@@ -72,7 +72,7 @@ Here is a quick start :
     You can now follow the instructions and enter the paths to your folders and files.
     (The recommended/correct arborescence is dispayed on the github.)
     You can now create anything, ranging from experiments to scientific objects.
-    Please be careful when filling the MIAPPE file, as this one of the most crucial steps.[/cyan]
+    Please be careful when filling the MIAPPE file, as this one of the most crucial steps.[/yellow]
 """
 
 def menu(etat):
