@@ -61,4 +61,5 @@ Everything should work !
 - ~~Data upploading.~~
 - Generalization : (changing the hardcoded provenances and PID, create the output document and the output folder in the experiment directory etc...)
 - Automatization(?)
+- Logging everything into a log-dd-mm-yyyy.log to keep a written trace of what has been done during the session.
 
