@@ -137,13 +137,24 @@ def choix_repertoire_travail():
                 else:
                     console.print("[bold red]Incorrect selection... :([/bold red]")
             console.print(table_fichiers)
+            
             while True:
                 choix_temp = IntPrompt.ask(f"[green]Please chose the tabular data file (0-{nombre_fichiers-1})[/green]")
                 if 0 <= choix_temp < nombre_fichiers:
                     choix_data = listedfiles[choix_temp]
                     console.print(f"[cyan]Your tabular data file is :[/cyan] [bold green]{choix_data}[/bold green]")
                     document_data = os.path.join(wd_experience, choix_data)
-                    return wd_experience,choix_dossier,document_miappe,document_data
+                    break
+            console.print(table_fichiers)
+
+            while True:
+                choix_temp = IntPrompt.ask(f"[green]Please chose the folder containing the pictures you want to upload (0-{nombre_fichiers-1})[/green]")
+                if 0 <= choix_temp < nombre_fichiers:
+                    choix_data = listedfiles[choix_temp]
+                    console.print(f"[cyan]The folder is :[/cyan] [bold green]{choix_data}[/bold green]")
+                    repertoire_photos = os.path.join(wd_experience, choix_data)
+
+                    return wd_experience,choix_dossier,document_miappe,document_data,repertoire_photos
                 else:
                     console.print("[bold red]Incorrect selection... :([/bold red]")
         else:

@@ -12,15 +12,15 @@ from jaqos.data_import import create_sci_obj,create_provenances
 import datetime
 from rich.prompt import Prompt
 
-def create_images(wd_experience,document_data,document_miappe,login,silex_API_Client):
+def create_images(wd_experience,document_data,document_miappe,repertoire_photos,login,silex_API_Client):
 
     TimeStamp=link_image_time(document_data)
     prov_dict=create_provenances(document_data,document_miappe,silex_API_Client)
     ScObj_uri=create_sci_obj(document_data,document_miappe,silex_API_Client)
-    import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dict,ScObj_uri,login,silex_API_Client)
+    import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dict,ScObj_uri,repertoire_photos,login,silex_API_Client)
     return prov_dict
     
-def get_round_protocol_info(wd_experience):
+def get_round_protocol_info(wd_experience,document_data):
         ### Get RoundProtocol Infos 
     Round_folder = os.path.join(wd_experience, '00-RoundProtocol')
     Round_files = []
@@ -38,7 +38,8 @@ def get_round_protocol_info(wd_experience):
     ## Create Dictionary for all parameters 
     PlantMask = {}
     CamPos = {}
-    PID="RGB1"
+    df_data = pd.read_excel(document_data)
+    PID = df_data['PID'].unique()[0]
     ## Transform RoundProtocol to xml 
     for key, value in Exp_Rd_Dict.items():
         with open(key) as file:
@@ -73,9 +74,11 @@ def link_image_time(document_data):
     desired_format = "%Y-%m-%dT%H:%M:%S%z"
     df_data['Measuring Date'] = df_data['Measuring Date'].dt.date
     df_data['Measuring Time'] = df_data['Measuring Time'].dt.tz_localize('UTC').dt.tz_convert('Europe/Helsinki').dt.strftime(desired_format)
-
-    df_data['Img Name'] = df_data.apply(lambda row: f"{row['Experiment ID']}-{row['Round Order']}-{row['Tray ID']}-{row['PID']}-{row['Angle']:03}", axis=1)
-
+    if 'Angle' in df_data.columns:
+        df_data['Img Name'] = df_data.apply(lambda row: f"{row['Experiment ID']}-{row['Round Order']}-{row['Tray ID']}-{row['PID']}-{row['Angle']:03}", axis=1)
+    else:
+        df_data['Img Name'] = df_data.apply(lambda row: f"{row['Experiment ID']}-{row['Round Order']}-{row['Tray ID']}-{row['PID']}", axis=1)
+    print(df_data['Img Name'])
     # Get Round Info in Dict 
     TimeStamp={}
     for index, row in df_data.iterrows():
@@ -88,10 +91,16 @@ def parse_image_filename(filepath, timestamp_dict, prov_uri,pid):
     filename_clean = filename.replace("_FishEyeCorrected", "").replace("_FishEyeMasked", "")
     
     parts = filename_clean.replace("_", "-").split("-")
-    parts[13] = parts[13].replace("A", "")
     
+    print(parts)
     tray_id = f"{parts[8]}_{parts[9]}_{parts[10]}_{parts[11]}"
-    date_key = f"{parts[0]}-{parts[1]}-{tray_id}-{parts[12]}-{parts[13]}"
+    print(tray_id)
+    if len(parts)>=14:
+        parts[13] = parts[13].replace("A", "")
+        date_key = f"{parts[0]}-{parts[1]}-{tray_id}-{parts[12]}-{parts[13]}"
+    else :
+        date_key = f"{parts[0]}-{parts[1]}-{tray_id}-{parts[12]}"
+        print(date_key)
     
     metadata = {
         "Path": filepath,
@@ -120,7 +129,7 @@ def get_existing_images(dat_api, prov_uri, exp_uri):
         for elts in dat_src
     }
 
-def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dict,ScObj_uri,login,silex_API_Client):
+def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dict,ScObj_uri,repertoire_photos,login,silex_API_Client):
     #getting experiment uri
     connexion(login, silex_API_Client)
     dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
@@ -132,9 +141,12 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
     #GETTING PID
     df_data = pd.read_excel(document_data)
     pid = df_data['PID'].unique()[0]
+    if 'Angle' not in df_data.columns:
+        df_data["Angle"]=None
+
     console.print(f'[bold cyan]PID found:[/bold cyan] {pid}')
     #Liste des images
-    wd_img = os.path.join(wd_experience)
+    wd_img = repertoire_photos
     ls_files = []
     for (root, dirs, files) in os.walk(wd_img):
         for filename in files:
@@ -153,18 +165,23 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
     #Pour TESTS
     sorted_ls_fec=sorted(ls_fec)
     sorted_ls_fem=sorted(ls_fem)
-    ls_fec = sorted_ls_fec[-15:-1] # On trie les deux listes dans l'ordre AZ puis on prends que les 5/10 derniers (en l'occurence les 5 derniers)
-    ls_fem = sorted_ls_fem[-15:-1] # Et on utilise ça à la place de la giga-liste 
+    ls_fec = sorted_ls_fec[-6:-1] # On trie les deux listes dans l'ordre AZ puis on prends que les 5/10 derniers (en l'occurence les 5 derniers)
+    ls_fem = sorted_ls_fem[-6:-1] # Et on utilise ça à la place de la giga-liste 
+    print (ls_fec)
+    print (ls_fem) 
     #Pour TESTS
-    CamPos,PlantMask=get_round_protocol_info(wd_experience)
-    
+
+    CamPos,PlantMask=get_round_protocol_info(wd_experience,document_data)
+    print("protocol info ok")
     dat_api = silex.DataApi(silex_API_Client)
     #Traitement des images FishEyeCorrected (FEC)
 
     prov_fec = prov_dict[f'{facility}_{pid}_FishEyeCorrectedImages']
+    print("prov_fec ok")
     corr_data = [parse_image_filename(f, TimeStamp, prov_fec, pid) for f in ls_fec]
-    
+    print("cor data ok")
     existing_fec_keys = get_existing_images(dat_api, prov_fec, exp_uri)
+    print("existing_fec_key ok")
 
     corr_to_upload = [
         img for img in corr_data 
@@ -188,7 +205,7 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
             "provenance": {
                 "uri": img["Prov"],
                 "settings": {
-                    "Camera Angle": img["Angle"],
+                    "Camera Angle": img["Angle"] if 'Angle' in img else None ,
                     "Camera Height": CamPos[int(img["Round Order"])]["height"],
                     "Offset": CamPos[int(img["Round Order"])]["Offset"]
                 },
@@ -228,7 +245,11 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
             connexion(login, silex_API_Client)
             timelimit = datetime.datetime.now() + datetime.timedelta(minutes=30)
 
-        settings = {"Camera Angle": img["Angle"]}
+        if "Angle" in img: 
+            settings = {"Camera Angle": img["Angle"]}
+        else:
+            settings={"Camera Angle": None}
+
         settings.update(PlantMask[int(img["Round Order"])])
 
         desc = {

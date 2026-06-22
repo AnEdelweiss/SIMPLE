@@ -62,12 +62,12 @@ def main():
                     if choix_dossier:
                         changement_repertoire = Prompt.ask(f"Would you like to continue to work on this experiment ? [bold]{choix_dossier}[/bold] ?", choices=["y", "n"], default="y")
                         if changement_repertoire == 'n':
-                            wd_experience, choix_dossier, document_miappe,document_data = choix_repertoire_travail()
+                            wd_experience, choix_dossier, document_miappe,document_data,repertoire_photos = choix_repertoire_travail()
                     else:
                         console.print("[cyan]You chose to import data on OpenSilex[/cyan]")
                         result = choix_repertoire_travail()
                         if result[0] is not None:
-                            wd_experience, choix_dossier, document_miappe,document_data = result
+                            wd_experience, choix_dossier, document_miappe,document_data,repertoire_photos = result
                         else:
                             break
                     if not wd_experience:
@@ -75,7 +75,7 @@ def main():
                     while True:
                         if choix_dossier is None:
                             console.print("[cyan]You chose to import data on OpenSilex[/cyan]")
-                            wd_experience, choix_dossier, document_miappe,document_data = choix_repertoire_travail()
+                            wd_experience, choix_dossier, document_miappe,document_data,repertoire_photos = choix_repertoire_travail()
                     #Gestion du repertoire de travail
                         console.print(Panel(MENU_CREATION, title="[bold]Experiment Menu[/bold]", border_style="green"))
                         choix_creation = IntPrompt.ask("[green]Please make your choice[/green]")
@@ -93,7 +93,7 @@ def main():
                             ScObj_uri = create_sci_obj(document_data,document_miappe,silex_API_Client)
 
                         elif choix_creation == 5:
-                            prov_dict=create_images(wd_experience,document_data,document_miappe,login,silex_API_Client)
+                            prov_dict=create_images(wd_experience,document_data,document_miappe,repertoire_photos,login,silex_API_Client)
                             
                         elif choix_creation == 6:
                             create_data(document_data, document_miappe,login,wd_experience,silex_API_Client)
@@ -102,7 +102,7 @@ def main():
                             Germplasms_uri, _ = create_germplasm(document_miappe, silex_API_Client)
                             Factors_Levels_uri, _ = create_factor(document_miappe, silex_API_Client)
                             ScObj_uri = create_sci_obj(document_data,document_miappe,silex_API_Client)
-                            prov_dict=create_images(wd_experience,document_data,document_miappe,login,silex_API_Client)
+                            prov_dict=create_images(wd_experience,document_data,document_miappe,repertoire_photos,login,silex_API_Client)
                             create_data(document_data, document_miappe,login,wd_experience,silex_API_Client)
                             break
                         elif choix_creation == 9:

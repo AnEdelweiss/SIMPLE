@@ -33,9 +33,17 @@ exp_database/
 └── experiment_4/
 ```
 
-## The miappe file
+## The input miappe file
 
 as this is a work in progress, it currently only works with the current MIAPPE table provided in /exp_database/test_JAQOS/Miappe_Template.xlsx
+
+You can cange the order of the sheets, but you should NOT rename sheet names, this is what the script is using to read read data from.
+Likewise, do NOT  rename the 2nd row  of each sheet nor delete it.
+
+## The output miappe file
+
+In the output folder, this is the final MIAPPE file that you shall upload on phis along with the experiment.
+You should NOT rename this file NOR change the name of the sheets, this is what the script is using to read data from.
 
 ## The tabular data
 
@@ -62,4 +70,3 @@ Everything should work !
 - Generalization : (changing the hardcoded provenances and PID, create the output document and the output folder in the experiment directory etc...)
 - Automatization(?)
 - Logging everything into a log-dd-mm-yyyy.log to keep a written trace of what has been done during the session.
-

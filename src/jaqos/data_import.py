@@ -1,3 +1,4 @@
+from rich.prompt import Prompt
 import sys
 import os
 import json
@@ -357,10 +358,28 @@ def create_data(document_data,document_miappe,login,wd_experience,silex_API_Clie
     df_data['Measuring Date'] = df_data['Measuring Date'].dt.date
     df_data['Measuring Time'] = df_data['Measuring Time'].dt.tz_localize('UTC').dt.tz_convert('Europe/Helsinki').dt.strftime(desired_format)
     # 2. Lecture du excel
-    dataframe = pd.read_excel(document_miappe, sheet_name="mapping_table_variables", header=0)
+    dataframe = pd.read_excel("/home/edelweiss/Documents/JAQOS/exp_database/test_JAQOS/Miappe_Template.xlsx", sheet_name="mapping_table_variables", header=0)
     Morpho_Info={}
     for row in dataframe.to_dict('records'):
         Morpho_Info[row["column_in_data_table"]]=row["opensilex_variable_name"]
+    liste_tabular_data=df_data.columns.tolist()
+    # print(liste_tabular_data)
+    liste_morpho_info=Morpho_Info.keys()
+    # print(liste_morpho_info)
+    result = [item for item in liste_morpho_info if item not in liste_tabular_data]#je fais l'union des deux listes pour trouver quelles données importer
+    # print (result)
+    for i in result: #j'importe seulement les données qui sont présentes dans les colonnes des données tabulaires et dans ma mapping table
+        try:
+            Morpho_Info.pop(i)
+        except Exception:
+            continue
+    console.print(f"Importating corresponding data found : {Morpho_Info.keys()}")
+
+    stop = Prompt.ask("[bold green]Is this correct?[/bold green]", choices=["y", "n"], default="y")
+    if stop =="n":
+        console.print("[bold red]OK, exiting client ![/bold red]")
+        sys.exit()
+        
     # ON RECUPERE LES DONNÉES DES IMAGES QU'ON A UPLOAD PRECEDEMMENT
     prov=f'{facility}_{pid}_FishEyeMaskedImages'
 
@@ -377,7 +396,7 @@ def create_data(document_data,document_miappe,login,wd_experience,silex_API_Clie
                         "Tray ID": trayid,
                         "Date": elts._date,
                         'Round Order': elts.metadata["Round Order"],
-                        "Angle": elts.provenance.settings["Camera Angle"],
+                        "Angle": elts.provenance.settings["Camera Angle"] if "Camera Angle" in elts.provenance.settings else None,
                         "uri": elts.uri})
     # print(Mask_uri[0])
     # print(len(Mask_uri))
@@ -402,7 +421,9 @@ def create_data(document_data,document_miappe,login,wd_experience,silex_API_Clie
             df_Slice = df_data.iloc[slc : slc + pas]
             bodies=[]
             count=count+1
-            for row in track(df_Slice.to_dict('records'), description="importing data"):
+            if 'Angle' not in df_Slice.columns:
+                df_Slice["Angle"]=None
+            for row in track(df_Slice.to_dict('records'), description=f"importing {value} data"):
                 Dat_Src=Dat_Api.search_data_list(targets = [ScObj_uri[row["Tray ID"]]],
                                                 metadata = json.dumps({'Round Order': row['Round Order']}),
                                                 start_date=row['Measuring Time'].replace('+', '.000+'),
@@ -410,11 +431,11 @@ def create_data(document_data,document_miappe,login,wd_experience,silex_API_Clie
                                                 variables = [Var_Src[0].uri],
                                                 experiments=[NameExp_uri[NameExp]], page_size=20)['result']
                 if Dat_Src:
-                    logfile[value].append({'Angle': {"{:03d}".format(row["Angle"])}, 'Tray ID': {row["Tray ID"]}, 'Round Order': {row["Round Order"]}})
+                    logfile[value].append({'Angle': row["Angle"], 'Tray ID': {row["Tray ID"]}, 'Round Order': {row["Round Order"]}})
                     
                 else:
                     Prov_Used=None
-                    Setting_Dict={"Camera Angle": "{:03d}".format(row["Angle"])}
+                    Setting_Dict={"Camera Angle": row["Angle"]}
                     for item in Mask_uri:
                         if item["Tray ID"]==row["Tray ID"] and item["Date"]==row['Measuring Time'].replace('+', '.000+'):
                             Prov_Used=silex.ProvEntityModel(uri=item["uri"], rdf_type="vocabulary:RGBImage")

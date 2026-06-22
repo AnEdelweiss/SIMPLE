@@ -42,21 +42,22 @@ def deconnexion(silex_API_Client) -> bool:
                 del silex_API_Client.default_headers['Authorization']
             #console.print("[bold green]Successfully disconnected[/bold green]")
         except Exception as e:
-            console.print(f"[bold red]Error durring disconnection : {e}[/bold red]")
+            console.print(f"[bold red]Error during disconnection : {e}[/bold red]")
             return False
     return True
 #Je verifie que l'utilisateur a accès à internet.
 def check_connection_internet():
-    # initializing URL
-    url = "https://www.aube-asso.org/"
-    timeout = 10
-    try:
-        # requesting URL
-        requests.get(url,timeout=timeout)
-        return
-    # catching exception
-    except (requests.ConnectionError,requests.Timeout):
-        sys.exit("You are not connected to internet :( \n Please check your connection and try again.")    
+    with console.status("checking internet access..."):
+        # initializing URL
+        url = "https://www.wikipedia.org/"
+        timeout = 10
+        try:
+            # requesting URL
+            requests.get(url,timeout=timeout)
+            return
+        # catching exception
+        except (requests.ConnectionError,requests.Timeout):
+            sys.exit("You are not connected to internet :( \n Please check your connection and try again.")
 #Check rapide de la connexion
 def is_connected(silex_API_Client) -> bool:
     if silex_API_Client is not None and 'Authorization' in silex_API_Client.default_headers:
