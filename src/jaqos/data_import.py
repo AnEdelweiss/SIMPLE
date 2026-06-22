@@ -85,6 +85,7 @@ def create_germplasm(document_miappe, silex_API_Client):
     Germplasms_uri = {}
 
     for row in track(list(dataframe.to_dict('records')), description="[green]Importing germplasms...[/green]"):
+        
         germ_name = row["name"]
         germ_species = row["species"]
         germ_type_species = row["RDF_Type_Species"]
@@ -105,6 +106,7 @@ def create_germplasm(document_miappe, silex_API_Client):
                 row.pop('RDF_Type_Species', None)
                 row.pop('Species', None)
                 row['species'] = Species_uri[germ_species]
+ #je convertis juste les clefs en string pour éviter les erreurs au déballage de la ligne d'après
                 body = silex.GermplasmCreationDTO(**row)
                 Germ_Api.create_germplasm(body=body, check_only=False)
                 Germ_Src = Germ_Api.search_germplasm(name=f"^{germ_name}$", rdf_type=germ_type_germplasm)["result"]
@@ -131,7 +133,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     pid = df_data['PID'].unique()[0]
     console.print(f'[bold cyan]PID found:[/bold cyan] {pid}')
     #on garde seulement les Tray ID uniques
-    df_ScObj = df_data.loc[:, "Tray ID":"PID"].drop_duplicates(subset=["Tray ID"])
+    df_ScObj = df_data.drop_duplicates(subset=["Tray ID"])
     Relations_Gen = []
     #on cherche si l'expérience éxiste pour en extraire l'uri
     Exp_Src = silex.ExperimentsApi(silex_API_Client).search_experiments(name=NameExp)
@@ -193,6 +195,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
             ScObj_uri.update({tray_id: scobj_cache[tray_id]})
         else:
             Relations_ScObj = []
+            all_factors=[]
             #ici on à la logique de vérification des germplasmes dans les objets scientifiques, on vérifie si il est dans la liste des germplasmes connus, et si oui on prends son uri
             if row["Germplasm"]:
                 if row["Germplasm"] not in dico_germplasm.keys():
@@ -212,20 +215,23 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
                     relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasGermplasm", value=germplasm_value)
                     Relations_ScObj.append(relation_temp)
             #on récupère les uri des niveaux de facteur
-
+            
             if factors_levels_uri and row["Factor Level"]:
-                if row["Factor Level"] not in factors_levels_uri:
-                    console.print("[bold red]\n The factor level was not found.\n Starting factor import from the MIAPPE document\n[/bold red]")
-                    factors_levels_uri, _ = create_factor(document_miappe, silex_API_Client)
-                    
-                    if row["Factor Level"] not in factors_levels_uri:
-                        console.print(f"[bold red] This factor level : [cyan]{row['Factor Level']}[/cyan] cannot be found, please check for typos or if they really exist.[/bold red]")
-                        console.print("[bold red] Exiting client [/bold red]")
-                        sys.exit()
-                else:
-                    factor_level_value = factors_levels_uri.get(row["Factor Level"])
-                    relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasFactorLevel", value=factor_level_value)
-                    Relations_ScObj.append(relation_temp)
+                for Factor_level in row["Factor Level"].split(","):
+                    Factor_level=Factor_level.strip()
+                    if Factor_level not in factors_levels_uri:
+                        console.print("[bold red]\n The factor level was not found.\n Starting factor import from the MIAPPE document\n[/bold red]")
+                        factors_levels_uri, _ = create_factor(document_miappe, silex_API_Client)
+                        
+                        if Factor_level not in factors_levels_uri:
+                            console.print(f"[bold red] This factor level : [cyan]{Factor_level}[/cyan] cannot be found, please check for typos or if they really exist.[/bold red]")
+                            console.print("[bold red] Exiting client [/bold red]")
+                            sys.exit()
+                    else:
+                        factor_level_value = factors_levels_uri.get(Factor_level)
+                        all_factors.append(factor_level_value)
+                        relation_temp = silex.RDFObjectRelationDTO(_property="vocabulary:hasFactorLevel", value=factor_level_value)
+                        Relations_ScObj.append(relation_temp)
 
             #on concatène les infos générales et les uri des germplasmes/facteurs puis on envoie le body et on le stock dans un dictionnaire
             Relations = Relations_Gen + Relations_ScObj
@@ -249,7 +255,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
                 "obsUnitId": ScObj_Src,
                 "externalId": body.name,
                 "biologicalMaterialId": germplasm_value if germplasm_value else None,
-                "obsUnitFactorValue": factor_level_value if factor_level_value else None,
+                "obsUnitFactorValue": all_factors if all_factors else None,
                 "Date Import": datetime.datetime.today().strftime('%Y-%m-%d %H:%M'),
             })
             created_sci_obj+=1

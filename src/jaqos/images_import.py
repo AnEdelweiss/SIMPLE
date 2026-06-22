@@ -153,8 +153,8 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
             if filename.endswith(".png"):
                 ls_files.append(os.path.join(root, filename))
 
-    ls_fec = [x for x in ls_files if "_FishEyeCorrected" in x]
-    ls_fem = [x for x in ls_files if "_FishEyeMasked" in x ]
+    ls_fec = [x for x in ls_files if "FishEyeCorrected" in x]
+    ls_fem = [x for x in ls_files if "FishEyeMasked" in x ]
 
     console.print(f'[bold cyan]Numbers of FEC Img:[/bold cyan] [bold green]{len(ls_fec)}\n[bold cyan]Numbers of FEM:[/bold cyan] [bold green]{len(ls_fem)}')    
     stop = Prompt.ask("[bold green]Do you want to continue to import images?[/bold green]", choices=["y", "n"], default="y")
