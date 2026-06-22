@@ -1,5 +1,5 @@
 import os
-from jaqos.__init__ import __version__
+from simple.__init__ import __version__
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, IntPrompt
@@ -16,7 +16,7 @@ BANNER = f"""[green]
 ⠀⣼⡟⠀⠀⠀⠀⠀⠀⣰⣿⠃⠀⠀⠀⠀⢻⣷⡀⠀⠀⠉⠛⢿⣶⠀⠀⠀⢻⣧⠀
 ⣸⡿⠀⠀⠀⠀⠀⠀⣴⡿⠁⠀⠀⠀⠀⠀⠀⢻⣷⡀⠀⠀⣴⣿⣿⡆⠀⠀⠀⢿⡇
 ⣿⡇⠀⠀⠀⠀⢀⣾⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣷⣠⣾⠟⠁⢿⣇⠀⠀⠀⢸⣿
-⣿⡁⠀⠀⠀⢠⣿⢏⣀⣀⣀⣠⣤⣤⣤⣤⣶⣶⣶⣿⣿⣧⣤⣀⣸⣿⠀⠀⠀⢸⣿    [cyan]⊹₊˚‧︵‿₊୨ [bold green]Welcome on JAQOS [cyan]୧₊‿︵‧˚₊⊹[green]
+⣿⡁⠀⠀⠀⢠⣿⢏⣀⣀⣀⣠⣤⣤⣤⣤⣶⣶⣶⣿⣿⣧⣤⣀⣸⣿⠀⠀⠀⢸⣿    [cyan]⊹₊˚‧︵‿₊୨ [bold green]Welcome on SIMPLE [cyan]୧₊‿︵‧˚₊⊹[green]
 ⣿⡇⠀⠀⠀⢿⣿⣿⣿⣟⣛⠋⠉⠉⠉⠉⠀⠀⠀⢸⣿⠈⠉⠛⢻⣿⠀⠀⠀⢸⣿
 ⢹⣷⠀⠀⠀⠈⢿⣯⠉⠙⠛⠿⢷⣶⣤⣄⣀⠀⠀⢸⣿⠀⠀⣰⡿⠃⠀⠀⠀⣾⡏
 ⠀⢿⣧⠀⠀⠀⠈⢿⣧⠀⠀⠀⠀⠀⠉⠙⠛⠿⣷⣾⣿⠀⣴⡿⠁⠀⠀⠀⣼⡿⠀
@@ -25,12 +25,12 @@ BANNER = f"""[green]
 ⠀⠀⠀⠀⠀⠙⢿⣶⣤⣀⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⣀⣤⣶⡿⠋⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠈⠙⠻⠿⣷⣶⣦⣤⣤⣤⣴⣶⣾⠿⠟⠋⠁⠀⠀⠀⠀⠀⠀⠀       
 
-  \\[+] JAQOS A Quick Opensilex Script
+  \\[+] Simple Interface MIAPPE-Phis Lightweight & Efficient
   [cyan]\\[+] You can chose an option by typing the associated number and pressing 'enter'
   [yellow]\\[+] You will be logged as a guest by default, you can log in to change user.[/yellow]
   [green]\\[+] Please read the README.md file available on the github for guidance.
   
-  [white]VERSION-JAQOS[/white]     = [bold green]{__version__} MIAPPE & RICH & ENGLISH[/bold green]
+  [white]VERSION-SIMPLE[/white]    = [bold green]{__version__} MIAPPE & RICH & ENGLISH[/bold green]
   [white]VERSION-OpenSilex[/white] = [bold green]1.5.1-HOTFIX[/bold green]
   [white]VERSION-MIAPPE[/white]    = [bold green]1.2[/bold green]
   [white]Made By[/white]           = [bold green]•┈••✦ Edelweiss ✦••┈•[/bold green]
@@ -47,15 +47,15 @@ MENU_CREATION = """
   [red]\\[9][/red] I want to return to the main menu...
 """
 HELP_MENU="""
-[bold red]Q. : What is JAQOS?[/bold red]
+[bold red]Q. : What is SIMPLE?[/bold red]
 [yellow]
 A. : A Command Line Interface coded in python with a focus on ease of use, rapidity and flexibility.
 This tool can help researchers uppload MIAPPE compliant phenotyping data on OpenSilex instances without any efforts.
 Allowing them to keep germplasm banks up to date, to create experiments, create or add scientific objects to an experiment, add pictures, DATA and more.
 [/yellow]
-[bold red]Q. : How can I use JAQOS ?
+[bold red]Q. : How can I use SIMPLE ?
 [yellow] 
-A. : If you don't know yet how to use JAQOS, please follow this link with the documentations : https://github.com/AnEdelweiss/JAQOS/blob/master/README.md 
+A. : If you don't know yet how to use SIMPLE, please follow this link with the documentations : https://github.com/AnEdelweiss/SIMPLE/blob/master/README.md 
 
 Here is a quick start :
 

@@ -6,8 +6,8 @@ import pandas as pd
 import opensilexClientToolsPython as silex
 from rich.progress import track
 from rich.table import Table
-from jaqos.ui import console,show_data_table_dictionnaire
-from jaqos.auth import connexion
+from simple.ui import console,show_data_table_dictionnaire
+from simple.auth import connexion
 import datetime
 from pprint import pprint
 

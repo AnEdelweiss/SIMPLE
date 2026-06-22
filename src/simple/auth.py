@@ -1,5 +1,5 @@
 import opensilexClientToolsPython as silex
-from jaqos.ui import console, Prompt,IntPrompt,Table
+from simple.ui import console, Prompt,IntPrompt,Table
 import json
 import requests
 import sys
@@ -8,7 +8,7 @@ INSTANCES = {
     "https://opensilex.org/sandbox/rest": "Sandbox",
     "https://phis.emphasis.fedcloud.eu/uh/rest": "Helsinki/UH",
     "https://opensilex.org/demo2/rest": "test1.5.1"
-    
+
 }
 
 def get_login():

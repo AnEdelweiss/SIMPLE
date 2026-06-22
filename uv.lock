@@ -76,45 +76,6 @@ wheels = [
 ]
 
 [[package]]
-name = "jaqos"
-version = "0.10.0"
-source = { editable = "." }
-dependencies = [
-    { name = "certifi" },
-    { name = "lxml" },
-    { name = "markdown-it-py" },
-    { name = "mdurl" },
-    { name = "numpy" },
-    { name = "openpyxl" },
-    { name = "opensilexclienttoolspython" },
-    { name = "pandas" },
-    { name = "pygments" },
-    { name = "python-dateutil" },
-    { name = "requests" },
-    { name = "rich" },
-    { name = "six" },
-    { name = "urllib3" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "certifi", specifier = "==2026.5.20" },
-    { name = "lxml", specifier = "==6.1.1" },
-    { name = "markdown-it-py", specifier = "==4.2.0" },
-    { name = "mdurl", specifier = "==0.1.2" },
-    { name = "numpy", specifier = "==2.4.6" },
-    { name = "openpyxl", specifier = ">=3.1.5" },
-    { name = "opensilexclienttoolspython", git = "https://github.com/OpenSILEX/opensilexClientToolsPython.git?rev=e26032c2620ec0a142c0601f43b83566788c4a25" },
-    { name = "pandas", specifier = "==3.0.3" },
-    { name = "pygments", specifier = "==2.20.0" },
-    { name = "python-dateutil", specifier = "==2.9.0.post0" },
-    { name = "requests", specifier = ">=2.34.2" },
-    { name = "rich", specifier = "==15.0.0" },
-    { name = "six", specifier = "==1.17.0" },
-    { name = "urllib3", specifier = "==2.7.0" },
-]
-
-[[package]]
 name = "lxml"
 version = "6.1.1"
 source = { registry = "https://pypi.org/simple" }
@@ -307,6 +268,45 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c0/8f/0722ca900cc807c13a6a0c696dacf35430f72e0ec571c4275d2371fca3e9/rich-15.0.0.tar.gz", hash = "sha256:edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36", size = 230680, upload-time = "2026-04-12T08:24:00.75Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/82/3b/64d4899d73f91ba49a8c18a8ff3f0ea8f1c1d75481760df8c68ef5235bf5/rich-15.0.0-py3-none-any.whl", hash = "sha256:33bd4ef74232fb73fe9279a257718407f169c09b78a87ad3d296f548e27de0bb", size = 310654, upload-time = "2026-04-12T08:24:02.83Z" },
+]
+
+[[package]]
+name = "simple"
+version = "0.10.0"
+source = { editable = "." }
+dependencies = [
+    { name = "certifi" },
+    { name = "lxml" },
+    { name = "markdown-it-py" },
+    { name = "mdurl" },
+    { name = "numpy" },
+    { name = "openpyxl" },
+    { name = "opensilexclienttoolspython" },
+    { name = "pandas" },
+    { name = "pygments" },
+    { name = "python-dateutil" },
+    { name = "requests" },
+    { name = "rich" },
+    { name = "six" },
+    { name = "urllib3" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "certifi", specifier = "==2026.5.20" },
+    { name = "lxml", specifier = "==6.1.1" },
+    { name = "markdown-it-py", specifier = "==4.2.0" },
+    { name = "mdurl", specifier = "==0.1.2" },
+    { name = "numpy", specifier = "==2.4.6" },
+    { name = "openpyxl", specifier = ">=3.1.5" },
+    { name = "opensilexclienttoolspython", git = "https://github.com/OpenSILEX/opensilexClientToolsPython.git?rev=e26032c2620ec0a142c0601f43b83566788c4a25" },
+    { name = "pandas", specifier = "==3.0.3" },
+    { name = "pygments", specifier = "==2.20.0" },
+    { name = "python-dateutil", specifier = "==2.9.0.post0" },
+    { name = "requests", specifier = ">=2.34.2" },
+    { name = "rich", specifier = "==15.0.0" },
+    { name = "six", specifier = "==1.17.0" },
+    { name = "urllib3", specifier = "==2.7.0" },
 ]
 
 [[package]]

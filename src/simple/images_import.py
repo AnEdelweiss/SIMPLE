@@ -6,9 +6,9 @@ import pandas as pd
 import opensilexClientToolsPython as silex
 from rich.progress import track
 from rich.table import Table
-from jaqos.ui import console
-from jaqos.auth import connexion
-from jaqos.data_import import create_sci_obj,create_provenances
+from simple.ui import console
+from simple.auth import connexion
+from simple.data_import import create_sci_obj,create_provenances
 import datetime
 from rich.prompt import Prompt
 

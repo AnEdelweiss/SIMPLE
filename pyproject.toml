@@ -1,7 +1,7 @@
 [project]
-name = "jaqos"
+name = "SIMPLE"
 version = "0.10.0"
-description = """JAQOS, a Command Line Interface coded in python with a focus on ease of use, rapidity and flexibility.This tool will ( I hope ) help researchers uppload MIAPPE compliant phenotyping data on OpenSilex instances."""
+description = """SIMPLE, a Command Line Interface coded in python with a focus on ease of use, rapidity and flexibility.This tool will ( I hope ) help researchers uppload MIAPPE compliant phenotyping data on OpenSilex instances."""
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.scripts]
-jaqos = "jaqos.cli:main"
+simple = "simple.cli:main"
 
 [tool.uv]
 package = true
@@ -32,5 +32,5 @@ opensilexclienttoolspython = { git = "https://github.com/OpenSILEX/opensilexClie
 
 [tool.uv.workspace]
 members = [
-    "jaqos",
+    "SIMPLE",
 ]

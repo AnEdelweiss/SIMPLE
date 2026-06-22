@@ -1,7 +1,7 @@
 import sys
 import pandas as pd
 import opensilexClientToolsPython as silex
-from jaqos.ui import console, Prompt, show_data_panel
+from simple.ui import console, Prompt, show_data_panel
 
 def find_Exp(silex_API_Client):
     

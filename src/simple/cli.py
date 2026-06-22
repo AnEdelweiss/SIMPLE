@@ -1,15 +1,12 @@
 import sys
-import os
 import opensilexClientToolsPython as silex
 from rich.prompt import Prompt, IntPrompt
 from rich.panel import Panel
-from rich.table import Table
-
-from jaqos.ui import console, BANNER, MENU_CREATION, menu, choix_repertoire_travail,HELP_MENU
-from jaqos.auth import INSTANCES, get_login,connexion, is_connected,check_connection_internet
-from jaqos.experiment import find_Exp, create_experiment
-from jaqos.data_import import create_factor, create_germplasm, create_sci_obj,create_data
-from jaqos.images_import import create_images
+from simple.ui import console, BANNER, MENU_CREATION, menu, choix_repertoire_travail,HELP_MENU
+from simple.auth import INSTANCES, get_login,connexion, is_connected,check_connection_internet
+from simple.experiment import find_Exp, create_experiment
+from simple.data_import import create_factor, create_germplasm, create_sci_obj,create_data
+from simple.images_import import create_images
 
 def main():
     check_connection_internet()

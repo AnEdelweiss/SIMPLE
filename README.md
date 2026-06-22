@@ -1,4 +1,6 @@
-# JAQOS A Quick Opensilex script
+# SIMPLE
+
+### Simple Interface MIAPPE-Phis, Lightweight & Efficient
 
 This is a work in progress, feedbacks are welcome.
 
@@ -8,7 +10,7 @@ This is a work in progress, feedbacks are welcome.
 
 ## Description.
 
-In the context of my internship, I am working on JAQOS, a Command Line Interface coded in python with a focus on ease of use, rapidity and flexibility. This tool will ( I hope ) help researchers uppload MIAPPE compliant phenotyping data on OpenSilex instances without any efforts. Allowing them to keep germplasm banks up to date, to create experiments, create or add scientific objects to an experiment, add pictures, DATA and more.
+In the context of my internship, I am working on SIMPLE, a Command Line Interface coded in python with a focus on ease of use, rapidity and flexibility. This tool will ( I hope ) help researchers uppload MIAPPE compliant phenotyping data on OpenSilex instances without any efforts. Allowing them to keep germplasm banks up to date, to create experiments, create or add scientific objects to an experiment, add pictures, DATA and more.
 
 ## Before the first run :
 
@@ -47,17 +49,19 @@ You should NOT rename this file NOR change the name of the sheets, this is what 
 
 ## The tabular data
 
-as this is a work in progress, it currently only works with the current tabular data provided in exp_database/test_JAQOS/RGB1_Morpho_Manual.xlsx
+as this is a work in progress, it currently only works with the current tabular data provided in exp_database/test_SIMPLE/RGB1_Morpho_Manual.xlsx
 
 ## Instructions for running (as of now) :
 
-- git clone https://github.com/AnEdelweiss/JAQOS.git
-- cd JAQOS
+This project requires Python 3.14.
+
+- git clone https://github.com/AnEdelweiss/SIMPLE.git
+- cd SIMPLE
 - uv venv
 - uv pip install -r pyproject.toml
-- uv run jaqos
+- uv run SIMPLE
 
-You can then use the provided dummy experiment in test_JAQOS, you can also modify the content of the miappe_template to try and create different experiments, germpasms etc...
+You can then use the provided dummy experiment in test_SIMPLE, you can also modify the content of the miappe_template to try and create different experiments, germplasms etc...
 Everything should work !
 
 ## Project roadmap :
