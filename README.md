@@ -6,7 +6,9 @@ This is a work in progress, feedbacks are welcome.
 
   V click here for a Quick Demo ! V
 
-[![asciicast](https://asciinema.org/a/SOl4FtwQvrXCMzVB.svg "Jaqos preview")](https://asciinema.org/a/SOl4FtwQvrXCMzVB)
+![Asciinema](simple.gif "Asciinema")
+
+or here : [asciinema link](https://asciinema.org/a/wbQdA2NXiHwN86DZ)
 
 ## Description.
 

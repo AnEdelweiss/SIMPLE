@@ -364,7 +364,7 @@ def create_data(document_data,document_miappe,login,wd_experience,silex_API_Clie
     df_data['Measuring Date'] = df_data['Measuring Date'].dt.date
     df_data['Measuring Time'] = df_data['Measuring Time'].dt.tz_localize('UTC').dt.tz_convert('Europe/Helsinki').dt.strftime(desired_format)
     # 2. Lecture du excel
-    dataframe = pd.read_excel("/home/edelweiss/Documents/JAQOS/exp_database/test_JAQOS/Miappe_Template.xlsx", sheet_name="mapping_table_variables", header=0)
+    dataframe = pd.read_excel(document_miappe, sheet_name="mapping_table_variables", header=0)
     Morpho_Info={}
     for row in dataframe.to_dict('records'):
         Morpho_Info[row["column_in_data_table"]]=row["opensilex_variable_name"]
