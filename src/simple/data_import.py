@@ -10,6 +10,15 @@ from simple.ui import console,show_data_table_dictionnaire
 from simple.auth import connexion
 import datetime
 from pprint import pprint
+import ast
+
+def get_name_space (silex_API_Client):
+    ontology_api = silex.OntologyApi(silex_API_Client)
+    instance_uri=ontology_api.get_base_uri()["result"]
+    name_space_dict=ast.literal_eval(ontology_api.get_name_space()["result"])
+    name_space=str([cle for cle, valeur in name_space_dict.items() if valeur == instance_uri])
+    name_space_clean=name_space.replace("'","").replace("[","").replace("]","")+":"
+    return name_space_clean,instance_uri
 
 def create_factor(document_miappe, silex_API_Client):
     #getting experiment name
@@ -181,6 +190,7 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
     dtos_to_export = []
     dico_germplasm={}
     created_sci_obj=0
+    base_uri_namespace,base_uri=get_name_space (silex_API_Client)
     #JE RECUPERE TOUS LES OBJETS SCIENTIFIQUES LIES A L'EXPERIENCE
     # JE LES METS DANS UN DICTIONNAIRE ET JE VERIFIE CHAQUE TRAY ID AVEC LE NOM DANS LE DICTIONNAIRE
     all_existing_objs = ScObj_Api.search_scientific_objects(experiment=NameExp_uri[NameExp], page_size=10000)["result"]
@@ -239,7 +249,8 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
             api_resp=ScObj_Api.create_scientific_object(body,)
             url_api=api_resp["result"][0]
             ##ATTENTION NE FONCTIONNE QUE SUR LA SANDBOX, DEMANDER A OPENSILEX POUR RENVOYER L'URI DANS L'API
-            ScObj_Src=url_api.replace("http://opensilex.test/","opensilex-sandbox:") 
+            ScObj_Src=url_api.replace(base_uri,base_uri_namespace) 
+            print(ScObj_Src)
             #print(ScObj_Src)
             #print(api_resp["result"][0])
             # sys.exit()
