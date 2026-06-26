@@ -250,11 +250,6 @@ def create_sci_obj(document_data,document_miappe,silex_API_Client):
             url_api=api_resp["result"][0]
             ##ATTENTION NE FONCTIONNE QUE SUR LA SANDBOX, DEMANDER A OPENSILEX POUR RENVOYER L'URI DANS L'API
             ScObj_Src=url_api.replace(base_uri,base_uri_namespace) 
-            print(ScObj_Src)
-            #print(ScObj_Src)
-            #print(api_resp["result"][0])
-            # sys.exit()
-            # ScObj_Src=1
             #ScObj_Src = ScObj_Api.search_scientific_objects(name=row["Tray ID"])["result"]
             #print(ScObj_Src)
             ScObj_uri.update({row["Tray ID"]: ScObj_Src})

@@ -6,5 +6,6 @@ dist/
 wheels/
 *.egg-info
 test/
+exp_database/
 # Virtual environments
 .venv
