@@ -22,50 +22,56 @@ def create_images(wd_experience,document_data,document_miappe,repertoire_photos,
     
 def get_round_protocol_info(wd_experience,document_data):
         ### Get RoundProtocol Infos 
-    Round_folder = os.path.join(wd_experience, '00-RoundProtocol')
-    Round_files = []
-    for (root, dirs, files) in os.walk(Round_folder):
-        for name in files:
-            Round_files.append(os.path.join(root, name))
-
-    ## Link RoundProtocol wd with Experiment and Round Numbers 
-    Exp_Rd_Dict = {}
-    for wd_round in Round_files:
-        Exp_Rd_temp = str.replace(wd_round, str(Round_folder+r"\RoundProtocol-"), "")
-        Exp_Rd = str.replace(Exp_Rd_temp, ".txt", "")
-        Exp_Rd_ls = Exp_Rd.split("121")
-        Exp_Rd_Dict.update({wd_round: {"Experiment": Exp_Rd_ls[0], "Round": (Exp_Rd_ls[1][0:3]).replace("_","")}})
-    ## Create Dictionary for all parameters 
     PlantMask = {}
     CamPos = {}
-    df_data = pd.read_excel(document_data)
-    PID = df_data['PID'].unique()[0]
-    ## Transform RoundProtocol to xml 
-    for key, value in Exp_Rd_Dict.items():
-        with open(key) as file:
-            xml_str = file.read().replace("\x00", "")
-        root = ET.fromstring(xml_str)
+    Round_folder = os.path.join(wd_experience, '00-RoundProtocol')
+    if os.path.isdir(Round_folder):
+        Round_files = []
+        for (root, dirs, files) in os.walk(Round_folder):
+            for name in files:
+                Round_files.append(os.path.join(root, name))
 
-    ## Get PlantMask Info for all rounds 
-        PlantMask_rd = {}
-        for child in root.iter(PID):
-            for subchild in child.iter("PlantMask"):
-                PlantMask_rd = {elem.tag: elem.text for elem in subchild}
-                round_index = int(value["Round"])
-                PlantMask[round_index] = PlantMask_rd
+        ## Link RoundProtocol wd with Experiment and Round Numbers 
+        Exp_Rd_Dict = {}
+        for wd_round in Round_files:
+            Exp_Rd_temp = str.replace(wd_round, str(Round_folder+r"\RoundProtocol-"), "")
+            Exp_Rd = str.replace(Exp_Rd_temp, ".txt", "")
+            Exp_Rd_ls = Exp_Rd.split("121")
+            Exp_Rd_Dict.update({wd_round: {"Experiment": Exp_Rd_ls[0], "Round": (Exp_Rd_ls[1][0:3]).replace("_","")}})
+        ## Create Dictionary for all parameters 
+        df_data = pd.read_excel(document_data)
+        PID = df_data['PID'].unique()[0]
+        ## Transform RoundProtocol to xml 
+        for key, value in Exp_Rd_Dict.items():
+            with open(key) as file:
+                xml_str = file.read().replace("\x00", "")
+            root = ET.fromstring(xml_str)
 
-    # ## Get Camera Position Info for all rounds 
-        CamPos_rd = {}
-        for child in root.iter(PID):
-            CamPos_rd.update(child.attrib)
-        for child in root.iter(PID):
-            for subchild in child.iter("Offset"):
-                CamPos_rd.update({subchild.tag: subchild.text})
-                round_index = int(value["Round"])
-                CamPos[round_index] = CamPos_rd
-    # console.print(PlantMask)
-    # console.print(CamPos)
-    console.print("[bold green]PlantMask and Camera Position Info found ![/bold green]")
+        ## Get PlantMask Info for all rounds 
+            PlantMask_rd = {}
+            for child in root.iter(PID):
+                for subchild in child.iter("PlantMask"):
+                    PlantMask_rd = {elem.tag: elem.text for elem in subchild}
+                    round_index = int(value["Round"])
+                    PlantMask[round_index] = PlantMask_rd
+
+        # ## Get Camera Position Info for all rounds 
+            CamPos_rd = {}
+            for child in root.iter(PID):
+                CamPos_rd.update(child.attrib)
+            for child in root.iter(PID):
+                for subchild in child.iter("Offset"):
+                    CamPos_rd.update({subchild.tag: subchild.text})
+                    round_index = int(value["Round"])
+                    CamPos[round_index] = CamPos_rd
+        # console.print(PlantMask)
+        # console.print(CamPos)
+        console.print("[bold green]PlantMask and Camera Position Info found ![/bold green]")
+    else :
+        stop=Prompt.ask("[bold red]PlantMask and Camera Position was not found, do you want to continue?\n(00-RoundProtocol missing) [/bold red]", choices=["y", "n"], default="y")
+        if stop =="n":
+            console.print("[bold red]OK, exiting client ![/bold red]")
+            sys.exit()
     return CamPos,PlantMask
 
 def link_image_time(document_data):
@@ -91,7 +97,6 @@ def parse_image_filename(filepath, timestamp_dict, prov_uri,pid):
     filename_clean = filename.replace("_FishEyeCorrected", "").replace("_FishEyeMasked", "")
     
     parts = filename_clean.replace("_", "-").split("-")
-    
     print(parts)
     tray_id = f"{parts[8]}_{parts[9]}_{parts[10]}_{parts[11]}"
     print(tray_id)
@@ -141,9 +146,10 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
     #GETTING PID
     df_data = pd.read_excel(document_data)
     pid = df_data['PID'].unique()[0]
+
     if 'Angle' not in df_data.columns:
         df_data["Angle"]=None
-
+        console.print("[red]no angle data found in tabular data")
     console.print(f'[bold cyan]PID found:[/bold cyan] {pid}')
     #Liste des images
     wd_img = repertoire_photos
@@ -152,7 +158,6 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
         for filename in files:
             if filename.endswith(".png"):
                 ls_files.append(os.path.join(root, filename))
-
     ls_fec = [x for x in ls_files if "FishEyeCorrected" in x]
     ls_fem = [x for x in ls_files if "FishEyeMasked" in x ]
 
@@ -185,7 +190,7 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
 
     corr_to_upload = [
         img for img in corr_data 
-        if (ScObj_uri[img["Tray ID"]], img["Date"].replace('+', '.000+'), img.get("Angle"), img["Round Order"]) not in existing_fec_keys
+        if (ScObj_uri[img["Tray ID"]], img["Date"].replace('+', '.000+'), img.get("Angle"), int(img["Round Order"])) not in existing_fec_keys
     ]
     
     console.print(f"[bold green]{len(corr_data) - len(corr_to_upload)} [cyan]FEC existantes sur[/cyan] {len(corr_data)}[/bold green]")
@@ -196,19 +201,25 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
         if datetime.datetime.now() > timelimit:
             connexion(login, silex_API_Client)
             timelimit = datetime.datetime.now() + datetime.timedelta(minutes=30)
-
+        #Set up des settings, pour faire en sorte de pouvoir envoyer des images même sans le dossier round_order
+        round_order = int(img.get("Round Order"))
+        cam_pos_round = CamPos.get(round_order, {}) # Renvoie un dictionnaire vide si le round order n'existe pas
+        settings_dict = {}
+        if img.get("Angle") is not None:
+            settings_dict["Camera Angle"] = img.get("Angle")
+        if cam_pos_round.get("height") is not None:
+            settings_dict["Camera Height"] = cam_pos_round.get("height")
+        if cam_pos_round.get("Offset") is not None:
+            settings_dict["Offset"] = cam_pos_round.get("Offset")
+        # fin de set up des settings et creation de la description de l'image
         desc = {
             "rdf_type": "vocabulary:RGBImage",
             "date": img["Date"],
             "target": ScObj_uri[img["Tray ID"]],
-            "metadata": {"Round Order": img["Round Order"]},
+            "metadata": {"Round Order": round_order},
             "provenance": {
                 "uri": img["Prov"],
-                "settings": {
-                    "Camera Angle": img["Angle"] if 'Angle' in img else None ,
-                    "Camera Height": CamPos[int(img["Round Order"])]["height"],
-                    "Offset": CamPos[int(img["Round Order"])]["Offset"]
-                },
+                "settings": settings_dict,
                 "experiments": [exp_uri]
             }
         }
@@ -235,7 +246,7 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
 
     mask_to_upload = [
         img for img in mask_data 
-        if (ScObj_uri[img["Tray ID"]], img["Date"].replace('+', '.000+'), img.get("Angle"), img["Round Order"]) not in existing_fem_keys
+        if (ScObj_uri[img["Tray ID"]], img["Date"].replace('+', '.000+'), img.get("Angle"), int(img["Round Order"])) not in existing_fem_keys
     ]
     
     console.print(f"[bold green]Found {len(mask_data) - len(mask_to_upload)} [cyan]FEC on[/cyan] {len(mask_data)} total[/bold green]")
@@ -248,15 +259,15 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
         if "Angle" in img: 
             settings = {"Camera Angle": img["Angle"]}
         else:
-            settings={"Camera Angle": None}
-
-        settings.update(PlantMask[int(img["Round Order"])])
+            settings = {"Camera Angle": None}
+        if 'round_order' in PlantMask:
+            settings.update(PlantMask[round_order])
 
         desc = {
             "rdf_type": "vocabulary:RGBImage",
             "date": img["Date"],
             "target": ScObj_uri[img["Tray ID"]],
-            "metadata": {"Round Order": img["Round Order"]},
+            "metadata": {"Round Order": round_order},
             "provenance": {
                 "uri": img["Prov"],
                 "prov_used": [{"uri": img["Prov_Used"], "rdf_type": "vocabulary:RGBImage"}] if img.get("Prov_Used") else [],
