@@ -105,7 +105,6 @@ def parse_image_filename(filepath, timestamp_dict, prov_uri,pid):
         date_key = f"{parts[0]}-{parts[1]}-{tray_id}-{parts[12]}-{parts[13]}"
     else :
         date_key = f"{parts[0]}-{parts[1]}-{tray_id}-{parts[12]}"
-        print(date_key)
     
     metadata = {
         "Path": filepath,
@@ -160,6 +159,19 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
                 ls_files.append(os.path.join(root, filename))
     ls_fec = [x for x in ls_files if "FishEyeCorrected" in x]
     ls_fem = [x for x in ls_files if "FishEyeMasked" in x ]
+    data_ls_fec=[]
+    data_ls_fem=[]
+    if 'FEC_Filename' in df_data.columns:
+        data_ls_fec=df_data.drop_duplicates(subset=['FEC_Filename']).values.tolist()
+    if 'FEM_Filename' in df_data.columns:
+        data_ls_fec=df_data.drop_duplicates(subset=['FEM_Filename']).values.tolist()
+    print(len(data_ls_fec))
+    for data in data_ls_fec:
+        if data in ls_fec:
+            continue
+        else :
+            print (f"erreur:{data}")
+    print(len(data_ls_fem))
 
     console.print(f'[bold cyan]Numbers of FEC Img:[/bold cyan] [bold green]{len(ls_fec)}\n[bold cyan]Numbers of FEM:[/bold cyan] [bold green]{len(ls_fem)}')    
     stop = Prompt.ask("[bold green]Do you want to continue to import images?[/bold green]", choices=["y", "n"], default="y")
@@ -172,8 +184,8 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
     sorted_ls_fem=sorted(ls_fem)
     ls_fec = sorted_ls_fec[-6:-1] # On trie les deux listes dans l'ordre AZ puis on prends que les 5/10 derniers (en l'occurence les 5 derniers)
     ls_fem = sorted_ls_fem[-6:-1] # Et on utilise ça à la place de la giga-liste 
-    print (ls_fec)
-    print (ls_fem) 
+    #print (ls_fec)
+    #print (ls_fem) 
     #Pour TESTS
 
     CamPos,PlantMask=get_round_protocol_info(wd_experience,document_data)
