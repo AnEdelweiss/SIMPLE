@@ -73,6 +73,7 @@ Everything should work !
 - ~~Photo upploadng.~~
 - ~~Make a 'help' feature in the CLI~~
 - ~~Data upploading.~~
+- Reading the image names from the tabular data file and comparing them to those found locally. Thus limiting the parsing data from filename and using directly the tabular data.
 - Generalization : (changing the hardcoded provenances and PID, create the output document and the output folder in the experiment directory etc...)
 - Automatization(?)
 - Logging everything into a log-dd-mm-yyyy.log to keep a written trace of what has been done during the session.
