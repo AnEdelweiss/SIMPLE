@@ -159,19 +159,46 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
                 ls_files.append(os.path.join(root, filename))
     ls_fec = [x for x in ls_files if "FishEyeCorrected" in x]
     ls_fem = [x for x in ls_files if "FishEyeMasked" in x ]
-    data_ls_fec=[]
-    data_ls_fem=[]
+    # On récupère également la liste de noms de fichiers présents dans notre tableur de données (uniques et sans les NA)
     if 'FEC_Filename' in df_data.columns:
-        data_ls_fec=df_data.drop_duplicates(subset=['FEC_Filename']).values.tolist()
+        data_ls_fec=df_data['FEC_Filename'].dropna().unique().tolist()
     if 'FEM_Filename' in df_data.columns:
-        data_ls_fec=df_data.drop_duplicates(subset=['FEM_Filename']).values.tolist()
-    print(len(data_ls_fec))
-    for data in data_ls_fec:
-        if data in ls_fec:
-            continue
-        else :
-            print (f"erreur:{data}")
-    print(len(data_ls_fem))
+        data_ls_fem=df_data['FEM_Filename'].dropna().unique().tolist()
+    #On extrait le nom des fichiers pour chaque dossier (fem/fec)
+    nom_fichier_fec={os.path.basename(path) for path in ls_fec}
+    nom_fichier_fem={os.path.basename(path) for path in ls_fem}
+    # je transforme nos listes récupées dans le tableur de données en set pour les comparer à ceux d'au desuss
+    set_ls_fec=set(data_ls_fec)
+    set_ls_fem=set(data_ls_fem)
+    #je fais une soustraction pour chaque cas, comme ça on sait si il manque image, ou lien dans le data sheet
+    missing_fec_database=set_ls_fec-nom_fichier_fec
+    missing_fem_database=set_ls_fem-nom_fichier_fem
+    missing_fec_spreadsheet=nom_fichier_fec-set_ls_fec
+    missing_fem_spreadsheet=nom_fichier_fem-set_ls_fem
+    #ça c'est juste pour l'affichage, on fait 4 tests pour informer l'utilsateur de ce qui manque
+    if len(missing_fec_database)!=0:
+        console.print(f"{len(missing_fec_database)} [red]images are missing from the FEC picture database..[/red]")
+        if Prompt.ask("show the missing pictures?",choices=["y", "n"], default="y") == "y":
+            console.print(missing_fec_database)
+    if len(missing_fem_database)!=0:
+        console.print(f"{len(missing_fem_database)} [red]images are missing from the FEM picture database..[/red]")
+        if Prompt.ask("show the missing pictures?",choices=["y", "n"], default="y") == "y":
+            console.print(missing_fem_database)
+    if len(missing_fec_spreadsheet)!=0:
+        console.print(f"{len(missing_fec_spreadsheet)} [red]images are missing from the FEC data speadsheet..[/red]")
+        if Prompt.ask("show the missing filenames?",choices=["y", "n"], default="y") == "y":
+            console.print(missing_fec_spreadsheet)
+    if len(missing_fem_spreadsheet)!=0:
+        console.print(f"{len(missing_fem_spreadsheet)} [red]images are missing from the FEM data speadsheet..[/red]")
+        if Prompt.ask("show the missing filenames?",choices=["y", "n"], default="y") == "y":
+            console.print(missing_fem_spreadsheet)
+    #Si tout va bien on dit que tout va bien
+    if len(missing_fec_database) + len(missing_fem_database) + len(missing_fec_spreadsheet)+len(missing_fem_spreadsheet)==0:
+        console.print("[green]The image database matches the data, we can continue[/green]")
+    else:
+        if Prompt.ask("[red]Continue despite decrepancies ? The import might fail..[/red]",choices=["y", "n"], default="n") == "n":
+            console.print("[bold red]OK, exiting client ![/bold red]")
+            sys.exit()
 
     console.print(f'[bold cyan]Numbers of FEC Img:[/bold cyan] [bold green]{len(ls_fec)}\n[bold cyan]Numbers of FEM:[/bold cyan] [bold green]{len(ls_fem)}')    
     stop = Prompt.ask("[bold green]Do you want to continue to import images?[/bold green]", choices=["y", "n"], default="y")
