@@ -34,19 +34,22 @@ def get_round_protocol_info(wd_experience,document_data):
         ## Link RoundProtocol wd with Experiment and Round Numbers 
         Exp_Rd_Dict = {}
         for wd_round in Round_files:
-            Exp_Rd_temp = str.replace(wd_round, str(Round_folder+r"\RoundProtocol-"), "")
-            Exp_Rd = str.replace(Exp_Rd_temp, ".txt", "")
-            Exp_Rd_ls = Exp_Rd.split("121")
-            Exp_Rd_Dict.update({wd_round: {"Experiment": Exp_Rd_ls[0], "Round": (Exp_Rd_ls[1][0:3]).replace("_","")}})
+            filename = os.path.basename(wd_round).replace(".txt", "")
+            Exp_Rd_ls = filename.split("-")
+            Exp_Rd_Dict.update({wd_round: {"Experiment": Exp_Rd_ls[1], "Round": (Exp_Rd_ls[2][0:3]).replace("_","")}})
         ## Create Dictionary for all parameters 
         df_data = pd.read_excel(document_data)
         PID = df_data['PID'].unique()[0]
         ## Transform RoundProtocol to xml 
         for key, value in Exp_Rd_Dict.items():
-            with open(key) as file:
-                xml_str = file.read().replace("\x00", "")
-            root = ET.fromstring(xml_str)
-
+            try:
+                with open(key,encoding='utf-16') as file:
+                    xml_str = file.read().replace("\x00", "")
+                root = ET.fromstring(xml_str)
+            except Exception as e:
+                with open(key) as file:
+                    xml_str = file.read().replace("\x00", "")
+                root = ET.fromstring(xml_str)
         ## Get PlantMask Info for all rounds 
             PlantMask_rd = {}
             for child in root.iter(PID):
@@ -81,9 +84,9 @@ def link_image_time(document_data):
     df_data['Measuring Date'] = df_data['Measuring Date'].dt.date
     df_data['Measuring Time'] = df_data['Measuring Time'].dt.tz_localize('UTC').dt.tz_convert('Europe/Helsinki').dt.strftime(desired_format)
     if 'Angle' in df_data.columns:
-        df_data['Img Name'] = df_data.apply(lambda row: f"{row['Experiment ID']}-{row['Round Order']}-{row['Tray ID']}-{row['PID']}-{row['Angle']:03}", axis=1)
+        df_data['Img Name'] = df_data.apply(lambda row: f"{row['Experiment ID']}-{row['Round Order']}-{row['Plant ID']}-{row['PID']}-{row['Angle']:03}", axis=1)
     else:
-        df_data['Img Name'] = df_data.apply(lambda row: f"{row['Experiment ID']}-{row['Round Order']}-{row['Tray ID']}-{row['PID']}", axis=1)
+        df_data['Img Name'] = df_data.apply(lambda row: f"{row['Experiment ID']}-{row['Round Order']}-{row['Plant ID']}-{row['PID']}", axis=1)
     print(df_data['Img Name'])
     # Get Round Info in Dict 
     TimeStamp={}
@@ -91,36 +94,38 @@ def link_image_time(document_data):
         TimeStamp.update({row["Img Name"]: row['Measuring Time']})
     return TimeStamp
 
-def parse_image_filename(filepath, timestamp_dict, prov_uri,pid):
-    #Extrait metadata depuis le nom de fichier.
-    filename = os.path.basename(filepath).split(".")[0]
-    filename_clean = filename.replace("_FishEyeCorrected", "").replace("_FishEyeMasked", "")
-    
-    parts = filename_clean.replace("_", "-").split("-")
-    print(parts)
-    tray_id = f"{parts[8]}_{parts[9]}_{parts[10]}_{parts[11]}"
-    print(tray_id)
-    if len(parts)>=14:
-        parts[13] = parts[13].replace("A", "")
-        date_key = f"{parts[0]}-{parts[1]}-{tray_id}-{parts[12]}-{parts[13]}"
-    else :
-        date_key = f"{parts[0]}-{parts[1]}-{tray_id}-{parts[12]}"
-    
-    metadata = {
-        "Path": filepath,
-        "Experiment ID": parts[0],
-        "Round Order": parts[1],
-        "Date": str(timestamp_dict[date_key]),
-        "Tray ID": tray_id,
-        "PID": parts[12],
-        "Prov": prov_uri,
-        "ImgType": filename.split("_")[-1]
-    }
-    
-    if pid == 'RGB1':
-        metadata["Angle"] = parts[13]
+def parse_excel_for_metadata(df_data,dict,prov,fem_or_fec):
+    metadata_dict={}
+    for row in track(list(df_data.to_dict('records')),total=len(df_data), description="[green]processing metadatas[/green]"):
+        exp_id = row['Experiment ID']
+        round_order = row['Round Order']
+        tray_id=row['Plant ID']
+        pid=row['PID']
+        if fem_or_fec == "fec":
+            filename=row["FEC_Filename"]
+        else :
+            filename=row["FEM_Filename"]
+        desired_format = "%Y-%m-%dT%H:%M:%S%z"
+        row['Measuring Date'] = row['Measuring Date'].date()
+        row['Measuring Time'] = row['Measuring Time'].tz_localize('UTC').tz_convert('Europe/Helsinki').strftime(desired_format)
+        date = row['Measuring Time']
+
+        metadata = {
+            "Path": dict[filename],
+            "Experiment ID": exp_id,
+            "Round Order": round_order,
+            "Date": date,
+            "Plant ID": tray_id,
+            "PID": pid,
+            "Prov": prov,
+            "ImgType": filename.replace('-','_').split("_")[-1]
+        }
+
+        if 'Angle' in row:
+            metadata["Angle"] = row['Angle']
+        metadata_dict[filename]=metadata
         
-    return metadata
+    return metadata_dict
 
 def get_existing_images(dat_api, prov_uri, exp_uri):
     # On prends le set de tuples (target, date, angle, round_order) existants
@@ -207,10 +212,10 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
         sys.exit()
     #Fin de liste des images
     #Pour TESTS
-    sorted_ls_fec=sorted(ls_fec)
-    sorted_ls_fem=sorted(ls_fem)
-    ls_fec = sorted_ls_fec[-6:-1] # On trie les deux listes dans l'ordre AZ puis on prends que les 5/10 derniers (en l'occurence les 5 derniers)
-    ls_fem = sorted_ls_fem[-6:-1] # Et on utilise ça à la place de la giga-liste 
+    # sorted_ls_fec=sorted(ls_fec)
+    # sorted_ls_fem=sorted(ls_fem)
+    # ls_fec = sorted_ls_fec[-6:-1] # On trie les deux listes dans l'ordre AZ puis on prends que les 5/10 derniers (en l'occurence les 5 derniers)
+    # ls_fem = sorted_ls_fem[-6:-1] # Et on utilise ça à la place de la giga-liste 
     #print (ls_fec)
     #print (ls_fem) 
     #Pour TESTS
@@ -218,20 +223,32 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
     CamPos,PlantMask=get_round_protocol_info(wd_experience,document_data)
     print("protocol info ok")
     dat_api = silex.DataApi(silex_API_Client)
-    #Traitement des images FishEyeCorrected (FEC)
-
+    #Traitement des images FishEyeCorrected (FEC)do you want
     prov_fec = prov_dict[f'{facility}_{pid}_FishEyeCorrectedImages']
     print("prov_fec ok")
-    corr_data = [parse_image_filename(f, TimeStamp, prov_fec, pid) for f in ls_fec]
-    print("cor data ok")
+    dict_fec = {os.path.basename(path): path for path in ls_fec if os.path.basename(path) in data_ls_fec}
+    dict_fem = {os.path.basename(path): path for path in ls_fem if os.path.basename(path) in data_ls_fem}
+    fem_or_fec="fec"
+    corr_data = parse_excel_for_metadata(df_data,dict_fec,prov_fec,fem_or_fec)
+    print("corrected data ok")
     existing_fec_keys = get_existing_images(dat_api, prov_fec, exp_uri)
-    print("existing_fec_key ok")
+    print("existing_corrected_data ok")
+    corr_to_upload = [
+        img for img in corr_data.values() 
+        if (ScObj_uri[img["Plant ID"]], img["Date"].replace('+', '.000+'), img.get("Angle"), int(img["Round Order"])) not in existing_fec_keys
+    ]
+
+    ####TEST :
+    toutes_fec_triees = sorted(corr_data.values(), key=lambda x: x["Path"])
+    
+    # On isole les 5 premières pour le test
+    fec_test_subset = toutes_fec_triees[:2]
 
     corr_to_upload = [
-        img for img in corr_data 
-        if (ScObj_uri[img["Tray ID"]], img["Date"].replace('+', '.000+'), img.get("Angle"), int(img["Round Order"])) not in existing_fec_keys
+        img for img in fec_test_subset 
+        if (ScObj_uri[img["Plant ID"]], img["Date"].replace('+', '.000+'), img.get("Angle"), int(img["Round Order"])) not in existing_fec_keys
     ]
-    
+    ###TEST
     console.print(f"[bold green]{len(corr_data) - len(corr_to_upload)} [cyan]FEC existantes sur[/cyan] {len(corr_data)}[/bold green]")
 
     timelimit = datetime.datetime.now() + datetime.timedelta(minutes=30)
@@ -254,7 +271,7 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
         desc = {
             "rdf_type": "vocabulary:RGBImage",
             "date": img["Date"],
-            "target": ScObj_uri[img["Tray ID"]],
+            "target": ScObj_uri[img["Plant ID"]],
             "metadata": {"Round Order": round_order},
             "provenance": {
                 "uri": img["Prov"],
@@ -262,6 +279,26 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
                 "experiments": [exp_uri]
             }
         }
+        # # ---------------- VERIFICATION DES DOUBLONS ----------------
+        # empreintes_vues = set()
+        # images_doublons = []
+
+        # for img in corr_to_upload:
+        #     # On recrée la clé d'unicité d'OpenSilex
+        #     empreinte = (img["Prov"], img["Plant ID"], img["Date"])
+            
+        #     if empreinte in empreintes_vues:
+        #         images_doublons.append(img)
+        #     else:
+        #         empreintes_vues.add(empreinte)
+
+        # print(f"Total des images prêtes à l'envoi : {len(corr_to_upload)}")
+        # print(f"Doublons stricts détectés (Même Prov + Target + Date) : {len(images_doublons)}")
+
+        # if len(images_doublons) > 0:
+        #     print("Exemple de fichier en doublon :", images_doublons[0]["Path"])
+        # # -----------------------------------------------------------
+        
         dat_api.post_data_file(description=json.dumps(desc), file=img["Path"])
     #Création du dictionnaire de liaison FEC -> FEM
     fec_uri_map = {
@@ -273,21 +310,33 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
 
     #Traitement des images FishEyeMasked (FEM)
     prov_fem = prov_dict[f'{facility}_{pid}_FishEyeMaskedImages']
-    mask_data = [parse_image_filename(f, TimeStamp, prov_fem, pid) for f in ls_fem]
-    
+    #mask_data = [parse_image_filename(f, TimeStamp, prov_fem, pid) for f in ls_fem]
+    dict_fem = {os.path.basename(path): path for path in ls_fem if os.path.basename(path) in data_ls_fem}
+    fem_or_fec="fem"
+    mask_data = parse_excel_for_metadata(df_data,dict_fem,prov_fem,fem_or_fec)
     # Association de l'URI parente
-    for img in mask_data:
-        target = ScObj_uri[img["Tray ID"]]
+    for img in mask_data.values():
+        target = ScObj_uri[img["Plant ID"]]
         date = img["Date"].replace('+', '.000+')
         img["Prov_Used"] = fec_uri_map.get((target, date))
 
     existing_fem_keys = get_existing_images(dat_api, prov_fem, exp_uri)
 
     mask_to_upload = [
-        img for img in mask_data 
-        if (ScObj_uri[img["Tray ID"]], img["Date"].replace('+', '.000+'), img.get("Angle"), int(img["Round Order"])) not in existing_fem_keys
+        img for img in mask_data.values()
+        if (ScObj_uri[img["Plant ID"]], img["Date"].replace('+', '.000+'), img.get("Angle"), int(img["Round Order"])) not in existing_fem_keys
     ]
+
+    # TEST TEST TEST
+    toutes_fem_triees = sorted(mask_data.values(), key=lambda x: x["Path"])
     
+    fem_test_subset = toutes_fem_triees[:2]
+
+    mask_to_upload = [
+        img for img in fem_test_subset 
+        if (ScObj_uri[img["Plant ID"]], img["Date"].replace('+', '.000+'), img.get("Angle"), int(img["Round Order"])) not in existing_fem_keys
+    ]
+    # TEST TEST TEST
     console.print(f"[bold green]Found {len(mask_data) - len(mask_to_upload)} [cyan]FEC on[/cyan] {len(mask_data)} total[/bold green]")
 
     for img in track(mask_to_upload, description="[bold blue]Uploading FEM[/bold blue]"):
@@ -305,7 +354,7 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
         desc = {
             "rdf_type": "vocabulary:RGBImage",
             "date": img["Date"],
-            "target": ScObj_uri[img["Tray ID"]],
+            "target": ScObj_uri[img["Plant ID"]],
             "metadata": {"Round Order": round_order},
             "provenance": {
                 "uri": img["Prov"],
@@ -314,6 +363,7 @@ def import_images(document_miappe,document_data,wd_experience,TimeStamp,prov_dic
                 "experiments": [exp_uri]
             }
         }
+        
         dat_api.post_data_file(description=json.dumps(desc), file=img["Path"])
 
     console.print('[bold green]Suceeded in importing images ![/bold green]')
