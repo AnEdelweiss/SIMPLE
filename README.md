@@ -32,9 +32,9 @@ This project requires Python 3.14.
 ```bash
 git clone https://github.com/AnEdelweiss/SIMPLE.git
 cd SIMPLE
-uv venv
-uv pip install -r pyproject.toml
-uv run simple
+uv sync                # installs the project + dev/test tooling
+uv run simple          # run the CLI
+uv sync --extra gui    # (optional) adds PyQt6, then: uv run simple --gui
 ```
 
 You can then use the provided dummy experiment, you can also modify the content of the miappe template to try and create different experiments, germplasms etc...

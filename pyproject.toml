@@ -1,46 +1,44 @@
 [project]
 name = "SIMPLE"
 version = "0.23.0"
-description = """SIMPLE, a Command Line Interface coded in python with a focus on ease of use, rapidity and flexibility.This tool will ( I hope ) help researchers uppload MIAPPE compliant phenotyping data on OpenSilex instances."""
+description = "SIMPLE, a Command Line Interface coded in python with a focus on ease of use, rapidity and flexibility. This tool will (I hope) help researchers upload MIAPPE compliant phenotyping data on OpenSilex instances."
 readme = "README.md"
-classifiers = ["License :: GPL-3.0-or-later"]
 requires-python = ">=3.14"
+license = "GPL-3.0-or-later"
 dependencies = [
-    "certifi==2026.5.20",
-    "lxml==6.1.1",
-    "markdown-it-py==4.2.0",
-    "mdurl==0.1.2",
-    "numpy==2.4.6",
+    "lxml>=6.1",
+    "numpy>=2.4",
     "openpyxl>=3.1.5",
     "opensilexclienttoolspython",
-    "pandas==3.0.3",
-    "pygments==2.20.0",
-    "pyinstaller>=6.21.0",
-    "python-dateutil==2.9.0.post0",
-    "requests>=2.34.2",
-    "rich==15.0.0",
-    "six==1.17.0",
-    "urllib3==2.7.0",
+    "pandas>=3.0",
+    "requests>=2.34",
+    "rich>=15.0",
 ]
+
+[project.optional-dependencies]
+gui = ["PyQt6>=6.7"]
 
 [project.scripts]
 simple = "simple.__main__:main"
 
-[tool.uv]
-package = true
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# The OpenSilex client is not published on PyPI: pin it to a known revision.
 [tool.uv.sources]
 opensilexclienttoolspython = { git = "https://github.com/OpenSILEX/opensilexClientToolsPython.git", rev = "e26032c2620ec0a142c0601f43b83566788c4a25" }
-
-[tool.uv.workspace]
-members = [
-    "SIMPLE",
-]
 
 [dependency-groups]
 dev = [
     "coverage[toml]>=7.0",
-    "pytest>=9.1.1",
+    "pytest>=9.1",
+]
+build = [
+    "pyinstaller>=6.21",
 ]
 
 [tool.coverage.run]
@@ -54,7 +52,7 @@ omit = [
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 0
+fail_under = 35
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

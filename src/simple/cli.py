@@ -285,8 +285,8 @@ def ui_import_datafiles(
     console.print(
         "[bold green]__________________________Datafiles Importation__________________________[bold green]"
     )
-    # on choisit le dossier photo ici
-    repertoire_photos, _ = choix_dossier_datafile(wd_experience)
+    # on choisit le dossier photo ici (the function returns (wd, photos))
+    _, repertoire_photos = choix_dossier_datafile(wd_experience)
     # taking care of provenances
     with console.status("[green]Checking provenances...[/green]", spinner="aesthetic"):
         prov_dict, datafile_provenance, missing_provs = get_provenances(

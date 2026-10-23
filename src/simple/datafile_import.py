@@ -9,6 +9,7 @@ from lxml import etree as ET
 
 from simple.__init__ import __version__
 from simple.auth import connexion
+from simple.data_import import format_timestamps
 from simple.erreurs import DataImportError, SimpleBaseException
 from simple.systeme_logs import logger
 
@@ -77,18 +78,9 @@ def get_round_protocol_info(wd_experience, document_data):
 def parse_excel_for_metadata(df_data, dict_paths, prov, file_type, timezone_exp="UTC"):
 
     metadata_dict = {}
-    desired_format = "%Y-%m-%dT%H:%M:%S%z"
 
     # Process the single timestamp column using the provided timezone
-    df_data["Measuring Time"] = pd.to_datetime(
-        df_data["timestamp"], format="%Y-%m-%d %H:%M:%S"
-    )
-    df_data["Measuring Time"] = (
-        df_data["Measuring Time"]
-        .dt.tz_localize("UTC")
-        .dt.tz_convert(timezone_exp)
-        .dt.strftime(desired_format)
-    )
+    df_data["Measuring Time"] = format_timestamps(df_data["timestamp"], timezone_exp)
 
     for row in list(df_data.to_dict("records")):
         exp_id = row["Experiment ID"]

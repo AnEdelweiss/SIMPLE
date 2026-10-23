@@ -11,6 +11,21 @@ from simple.erreurs import DataImportError
 from simple.systeme_logs import logger
 
 
+def format_timestamps(series, timezone="UTC"):
+    """Parse a timestamp column into "%Y-%m-%dT%H:%M:%S%z" strings in `timezone`.
+
+    ``format="ISO8601"`` + ``utc=True`` normalises every shape the two import
+    paths can meet — ISO-8601 with an offset, ISO-8601 without one, or
+    "YYYY-MM-DD HH:MM:SS" — to a tz-aware UTC index, converted a single time.
+    """
+    desired_format = "%Y-%m-%dT%H:%M:%S%z"
+    return (
+        pd.to_datetime(series, format="ISO8601", utc=True)
+        .dt.tz_convert(timezone)
+        .dt.strftime(desired_format)
+    )
+
+
 def get_name_space(silex_API_Client):
     ontology_api = silex.OntologyApi(silex_API_Client)
     instance_uri = ontology_api.get_base_uri()["result"]
@@ -293,27 +308,29 @@ def create_sci_obj(
         else:
             relations_sci_obj = []
             all_factors = []
+            germplasm_value = None
             # ici on à la logique de vérification des germplasmes dans les objets scientifiques, on vérifie si il est dans la liste des germplasmes connus, et si oui on prends son uri
-            if row["Germplasm"]:
-                if row["Germplasm"] not in dico_germplasm:
+            germ_name = row.get("Germplasm")
+            if pd.notna(germ_name) and germ_name:
+                if germ_name not in dico_germplasm:
                     germ_search = silex.GermplasmApi(silex_API_Client).search_germplasm(
-                        name=f"^{row['Germplasm']}$"
+                        name=f"^{germ_name}$"
                     )["result"]
                     if germ_search:
-                        dico_germplasm[row["Germplasm"]] = germ_search[0].uri
-                        germplasm_value = dico_germplasm[row["Germplasm"]]
+                        dico_germplasm[germ_name] = germ_search[0].uri
+                        germplasm_value = dico_germplasm[germ_name]
                         relation_temp = silex.RDFObjectRelationDTO(
                             _property="vocabulary:hasGermplasm", value=germplasm_value
                         )
                         relations_sci_obj.append(relation_temp)
-                        logger.info(f"Germplasm {row['Germplasm']} found")
+                        logger.info(f"Germplasm {germ_name} found")
                     else:
-                        logger.error(f"Germplasm {row['Germplasm']} cannot be found.")
+                        logger.error(f"Germplasm {germ_name} cannot be found.")
                         raise DataImportError(
-                            f"[bold red] Germplasm [cyan]{row['Germplasm']}[/cyan] cannot be found, please check for typos or if they exist.[/bold red]"
+                            f"[bold red] Germplasm [cyan]{germ_name}[/cyan] cannot be found, please check for typos or if they exist.[/bold red]"
                         )
                 else:
-                    germplasm_value = dico_germplasm[row["Germplasm"]]
+                    germplasm_value = dico_germplasm[germ_name]
                     relation_temp = silex.RDFObjectRelationDTO(
                         _property="vocabulary:hasGermplasm", value=germplasm_value
                     )
@@ -397,12 +414,17 @@ def create_sci_obj(
         )
         os.makedirs(os.path.dirname(fichier_excel), exist_ok=True)
         df_export = pd.DataFrame(dtos_to_export)
-        df_precedent = pd.read_excel(fichier_excel, sheet_name="Observation Unit")
-        df_final = pd.concat([df_precedent, df_export])
-        with pd.ExcelWriter(
-            fichier_excel, engine="openpyxl", mode="a", if_sheet_exists="replace"
-        ) as writer:
-            df_final.to_excel(writer, sheet_name="Observation Unit", index=False)
+        if os.path.exists(fichier_excel):
+            df_precedent = pd.read_excel(fichier_excel, sheet_name="Observation Unit")
+            df_final = pd.concat([df_precedent, df_export])
+            with pd.ExcelWriter(
+                fichier_excel, engine="openpyxl", mode="a", if_sheet_exists="replace"
+            ) as writer:
+                df_final.to_excel(writer, sheet_name="Observation Unit", index=False)
+        else:
+            # First run: there is no workbook to append to yet, so create one.
+            with pd.ExcelWriter(fichier_excel, engine="openpyxl") as writer:
+                df_export.to_excel(writer, sheet_name="Observation Unit", index=False)
         logger.info("The scientific object sheet was successfully created/edited.")
     return sci_obj_uri, created_sci_obj
 
@@ -547,19 +569,10 @@ def create_data(
         timezone_exp = dataframe["experiment_timezone"].dropna().iloc[0]
     else:
         timezone_exp = "UTC"
-    desired_format = "%Y-%m-%dT%H:%M:%S%z"
     df_data = pd.read_excel(document_data)
 
     # ON RECUPERE LE TEMPS DANS TIMESTAMP ET ON CONVERTI EVENTUELLEMENT
-    df_data["Measuring Time"] = pd.to_datetime(
-        df_data["timestamp"], format="%Y-%m-%dT%H:%M:%S%z"
-    )
-    df_data["Measuring Time"] = (
-        df_data["Measuring Time"]
-        .dt.tz_localize("UTC")
-        .dt.tz_convert(timezone_exp)
-        .dt.strftime(desired_format)
-    )
+    df_data["Measuring Time"] = format_timestamps(df_data["timestamp"], timezone_exp)
 
     if "Angle" not in df_data.columns:
         df_data["Angle"] = None
