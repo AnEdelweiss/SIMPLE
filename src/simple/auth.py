@@ -187,7 +187,7 @@ def is_connected(api_client) -> bool:
 
 
 def _authentication_error_from_api(
-    exc: silex.rest.ApiException,
+    exc: silex.rest.ApiException, error_str=None
 ) -> AuthenticationError:
     """Turn an OpenSILEX ``ApiException`` into the historical user message.
 
@@ -196,7 +196,7 @@ def _authentication_error_from_api(
     be decoded the old "impossible to decode" message is kept. An exception
     without a body keeps the old raw-text fallback.
     """
-    error_str = str(exc)
+    error_str = str(exc) if error_str is None else error_str
     if exc.body:
         try:
             error_data = json.loads(exc.body)
@@ -239,7 +239,7 @@ def connect(login, api_client) -> bool:
         # the original API error when present so the message can use .body.
         cause = e.__context__
         if isinstance(cause, silex.rest.ApiException):
-            auth_error = _authentication_error_from_api(cause)
+            auth_error = _authentication_error_from_api(cause, str(e))
         else:
             message = f"error : User authentication failed :{e}"
             logger.error(message)

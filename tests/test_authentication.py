@@ -221,6 +221,8 @@ class TestAuth:
             connect({"host": "https://fake.url"}, mock_client)
 
         assert str(error_info.value).startswith("error is impossible to decode :")
+        # The wrapper text is preserved in the fallback message.
+        assert "Connection to OpenSilex failed:" in str(error_info.value)
 
     @patch("simple.auth.logout")
     def test_connect_api_error_body_without_message(self, mock_logout):
@@ -247,6 +249,7 @@ class TestAuth:
             connect({"host": "https://fake.url"}, mock_client)
 
         assert str(error_info.value).startswith("error : User authentication failed :")
+        assert "Connection to OpenSilex failed:" in str(error_info.value)
 
     @patch("simple.auth.logout")
     def test_connect_direct_api_exception(self, mock_logout):
