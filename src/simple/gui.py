@@ -418,7 +418,8 @@ class SimpleGUI(QMainWindow):
 
     def do_import_datafiles(self):
         self.repertoire_photos = QFileDialog.getExistingDirectory(self, "Select Photo Directory", self.wd_experience)
-        if not self.repertoire_photos: return
+        if not self.repertoire_photos:
+            return
 
         # 1. UI interaction must happen in the main thread before starting the background task
         datafile_check = check_for_datafiles(self.document_data, self.repertoire_photos)

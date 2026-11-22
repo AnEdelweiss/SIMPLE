@@ -29,6 +29,8 @@ jobs:
         uses: astral-sh/setup-uv@v8.0.0
       - name: Install project + dev dependencies
         run: uv sync
+      - name: Lint with ruff
+        run: uv run ruff check .
       - name: Run tests with coverage
         run: uv run coverage run -m pytest -q
       - name: Enforce coverage threshold

@@ -3,7 +3,6 @@ import argparse
 from simple.cli import main as cli_main
 
 
-
 def main():
     parser = argparse.ArgumentParser(description="SIMPLE - Scientific data import tool")
     parser.add_argument(
