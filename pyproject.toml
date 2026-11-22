@@ -48,11 +48,14 @@ omit = [
     "*/tests/*",
     "*/__main__.py",
     "*/console.py",
+    # The GUI needs the optional PyQt6 extra, which `uv sync` (and the CI
+    # test job) does not install, so it can never be exercised there.
+    "*/gui.py",
 ]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 50
+fail_under = 65
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
