@@ -1,4 +1,7 @@
 import json
+import os
+import tomllib
+from pathlib import Path
 
 import opensilexClientToolsPython as silex
 import requests
@@ -8,12 +11,68 @@ from simple.errors import AuthenticationError, NetworkError
 from simple.logging_setup import logger
 from simple.ui import IntPrompt, Prompt, Table, console
 
-# Initiatialisation des différentes instances
-INSTANCES = {
-    "https://opensilex.org/sandbox/rest": "Sandbox",
+SANDBOX_URL = "https://opensilex.org/sandbox/rest"
+
+# Built-in defaults; custom entries are merged from the TOML config and the
+# SIMPLE_INSTANCES environment variable (see load_instances).
+DEFAULT_INSTANCES = {
+    SANDBOX_URL: "Sandbox",
     "https://phis.emphasis.fedcloud.eu/uh/rest": "Helsinki/UH",
     "https://opensilex.org/demo2/rest": "test1.5.1",
 }
+
+DEFAULT_CONFIG_PATH = Path.home() / ".config" / "simple" / "config.toml"
+
+
+def _read_toml_instances(path):
+    """Read the ``[instances]`` table from *path*, ignoring a missing file."""
+    try:
+        with open(path, "rb") as handle:
+            data = tomllib.load(handle)
+    except FileNotFoundError:
+        if os.environ.get("SIMPLE_CONFIG"):
+            logger.warning(f"SIMPLE_CONFIG points to a missing file: {path}")
+        return {}
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        logger.warning(f"Could not read instance config {path}: {exc}")
+        return {}
+
+    instances = data.get("instances", {})
+    if not isinstance(instances, dict):
+        logger.warning(f"Ignoring {path}: 'instances' must be a table")
+        return {}
+    return {str(url): str(name) for url, name in instances.items()}
+
+
+def _parse_env_instances(raw):
+    """Parse ``Name=URL,Other=URL`` from SIMPLE_INSTANCES into URL -> name."""
+    instances = {}
+    for entry in raw.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        name, separator, url = entry.partition("=")
+        name, url = name.strip(), url.strip()
+        if not separator or not name or not url:
+            logger.warning(f"Ignoring malformed SIMPLE_INSTANCES entry: {entry!r}")
+            continue
+        instances[url] = name
+    return instances
+
+
+def load_instances(config_path=None):
+    """Return the instance list: built-ins, then TOML, then env overrides."""
+    instances = dict(DEFAULT_INSTANCES)
+    if config_path is None:
+        config_path = os.environ.get("SIMPLE_CONFIG") or DEFAULT_CONFIG_PATH
+    instances.update(_read_toml_instances(Path(config_path)))
+    raw_instances = os.environ.get("SIMPLE_INSTANCES")
+    if raw_instances:
+        instances.update(_parse_env_instances(raw_instances))
+    return instances
+
+
+INSTANCES = load_instances()
 
 
 def get_login():
@@ -21,30 +80,42 @@ def get_login():
     login = {}
     instance_urls = list(INSTANCES.keys())
     instance_names = list(INSTANCES.values())
+    custom_index = len(instance_names)
 
     table = Table(title="Available instances", show_header=False)
     table.add_column("Index", style="cyan")
     table.add_column("Name", style="green")
     for index, name in enumerate(instance_names):
         table.add_row(str(index), name)
+    table.add_row(str(custom_index), "Custom URL")
     console.print(table)
     while True:
         instance_index = IntPrompt.ask(
-            f"[green]\\[+][/green][cyan]On which instance would you like to log in (0-{len(instance_names) - 1})[/cyan]"
+            f"[green]\\[+][/green][cyan]On which instance would you like to log in (0-{custom_index})[/cyan]"
         )
-        if 0 <= instance_index <= len(instance_names) - 1:
-            login["host"] = instance_urls[instance_index]
+        if 0 <= instance_index <= custom_index:
+            if instance_index == custom_index:
+                host = Prompt.ask(
+                    "[cyan]Full REST URL of your OpenSILEX instance[/cyan]"
+                ).strip()
+                if not host:
+                    console.print("[red][bold]Please enter a URL.[/bold][/red]")
+                    continue
+                login["host"] = host
+            else:
+                login["host"] = instance_urls[instance_index]
             break
         else:
             console.print(
-                f"[red][bold]Please type a number between [white]0[/white] and [white]{len(instance_names) - 1}[/white][/red][/bold]"
+                f"[red][bold]Please type a number between [white]0[/white] and [white]{custom_index}[/white][/red][/bold]"
             )
-    if instance_index == 0:
+    if login["host"] == SANDBOX_URL:
         login["identifier"] = "guest@opensilex.org"
         login["password"] = "guest"
     else:
+        display_name = INSTANCES.get(login["host"], login["host"])
         login["identifier"] = Prompt.ask(
-            f"[green]\\[+][/green]  [cyan]Username/mail on [/cyan] [green]{INSTANCES[login['host']]}[/green]"
+            f"[green]\\[+][/green]  [cyan]Username/mail on [/cyan] [green]{display_name}[/green]"
         )
         login["password"] = Prompt.ask(
             "[green]\\[+][/green] [cyan] Password[/cyan] [red](it is invisible for security reasons)[/red]",

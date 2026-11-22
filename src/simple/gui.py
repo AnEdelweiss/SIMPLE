@@ -21,7 +21,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from simple.auth import INSTANCES, check_connection_internet, connect, is_connected
+from simple.auth import (
+    INSTANCES,
+    SANDBOX_URL,
+    check_connection_internet,
+    connect,
+    is_connected,
+)
 from simple.data_import import (
     create_factor,
     create_germplasm,
@@ -202,14 +208,27 @@ class SimpleGUI(QMainWindow):
 
 
     def action_login(self):
+        custom_label = "Custom URL..."
         host_display, ok = QInputDialog.getItem(
-            self, "Login", "Select host instance:", list(INSTANCES.values()), 0, False
+            self,
+            "Login",
+            "Select host instance:",
+            list(INSTANCES.values()) + [custom_label],
+            0,
+            False,
         )
         if not ok:
             return
-        
-        host = next(key for key, value in INSTANCES.items() if value == host_display)
-        if host == "https://opensilex.org/sandbox/rest":
+
+        if host_display == custom_label:
+            host, ok = QInputDialog.getText(self, "Login", "Instance REST URL:")
+            if not ok or not host.strip():
+                return
+            host = host.strip()
+        else:
+            host = next(key for key, value in INSTANCES.items() if value == host_display)
+
+        if host == SANDBOX_URL:
             identifier="guest@opensilex.org"
             password="guest"
             self.login_info = {"host": host, "identifier": identifier, "password": password}
@@ -227,7 +246,9 @@ class SimpleGUI(QMainWindow):
 
         try:
             connect(self.login_info, self.api_client)
-            self.status_label.setText(f"Logged in as {identifier} on {INSTANCES[host]}")
+            self.status_label.setText(
+                f"Logged in as {identifier} on {INSTANCES.get(host, host)}"
+            )
             QMessageBox.information(self, "Success", "Connected successfully.")
         except AuthenticationError as e:
             QMessageBox.critical(self, "Auth Error", str(e))

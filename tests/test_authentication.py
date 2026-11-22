@@ -6,10 +6,14 @@ import requests
 import urllib3
 
 from simple.auth import (
+    DEFAULT_INSTANCES,
+    INSTANCES,
+    SANDBOX_URL,
     check_connection_internet,
     connect,
     get_login,
     is_connected,
+    load_instances,
     logout,
 )
 
@@ -289,3 +293,61 @@ class TestAuth:
         assert login_dict["host"] == "https://phis.emphasis.fedcloud.eu/uh/rest"
         assert login_dict["identifier"] == "mon_adresse@mail.com"
         assert login_dict["password"] == "mon_mot_de_passe_secret"
+
+
+class TestInstanceConfiguration:
+    def test_missing_config_keeps_defaults(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("SIMPLE_INSTANCES", raising=False)
+
+        instances = load_instances(tmp_path / "missing.toml")
+
+        assert instances == DEFAULT_INSTANCES
+
+    def test_toml_adds_and_overrides_instances(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("SIMPLE_INSTANCES", raising=False)
+        config = tmp_path / "config.toml"
+        config.write_text(
+            "[instances]\n"
+            '"https://custom.example/rest" = "Custom"\n'
+            f'"{SANDBOX_URL}" = "Local sandbox"\n'
+        )
+
+        instances = load_instances(config)
+
+        assert instances["https://custom.example/rest"] == "Custom"
+        assert instances[SANDBOX_URL] == "Local sandbox"
+        assert instances["https://phis.emphasis.fedcloud.eu/uh/rest"] == "Helsinki/UH"
+
+    def test_env_adds_instances_and_ignores_malformed_entries(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv(
+            "SIMPLE_INSTANCES",
+            "EnvInstance=https://env.example/rest,malformed",
+        )
+
+        instances = load_instances(tmp_path / "missing.toml")
+
+        assert instances["https://env.example/rest"] == "EnvInstance"
+        assert all(name != "malformed" for name in instances.values())
+
+    def test_invalid_toml_is_ignored(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("SIMPLE_INSTANCES", raising=False)
+        config = tmp_path / "config.toml"
+        config.write_text("this is not = [valid toml")
+
+        assert load_instances(config) == DEFAULT_INSTANCES
+
+    @patch("simple.auth.Prompt.ask")
+    @patch("simple.auth.IntPrompt.ask")
+    def test_get_login_accepts_a_custom_url(self, mock_int_ask, mock_ask):
+        mock_int_ask.return_value = len(INSTANCES)  # the "Custom URL" row
+        mock_ask.side_effect = ["https://custom.example/rest", "user", "secret"]
+
+        login = get_login()
+
+        assert login == {
+            "host": "https://custom.example/rest",
+            "identifier": "user",
+            "password": "secret",
+        }

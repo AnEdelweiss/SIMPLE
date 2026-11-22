@@ -48,6 +48,29 @@ link to opensilex python package : [opensilex github](https://github.com/OpenSIL
 
 `uv run simple --dry-run exp_database/dummy_experiment` validates an experiment folder (template sheets, referenced datafiles) without logging in or uploading anything. Exit code is 1 if something is missing.
 
+## Custom instances
+
+The built-in instance list can be extended or overridden without editing the
+code. The default config file is `~/.config/simple/config.toml` (override it
+with `SIMPLE_CONFIG`):
+
+```toml
+[instances]
+"https://my-phis.example/rest" = "My PHIS"
+"https://opensilex.org/sandbox/rest" = "Sandbox (local name)"
+```
+
+You can also add instances for a single run with `SIMPLE_INSTANCES`
+(`Name=URL` pairs, comma-separated). Environment entries win over the TOML
+file, which wins over the built-in list:
+
+```bash
+SIMPLE_INSTANCES="Lab PHIS=https://phis.lab.example/rest" uv run simple
+```
+
+The login menu always offers a `Custom URL` row, so a one-off instance does
+not need any configuration at all.
+
 ## Contributing
 
 This project can always be perfected, contribution are always welcome.

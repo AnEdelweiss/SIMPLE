@@ -475,7 +475,7 @@ def main():
                 login = get_login()
                 try:
                     connect(login, api_client)
-                    status = f"[cyan]Your are logged in as[/cyan] [bold green]{login['identifier']}[/bold green] [cyan]on[/cyan] [bold green]{INSTANCES[login['host']]}[/bold green]."
+                    status = f"[cyan]Your are logged in as[/cyan] [bold green]{login['identifier']}[/bold green] [cyan]on[/cyan] [bold green]{INSTANCES.get(login['host'], login['host'])}[/bold green]."
                 except AuthenticationError as e:
                     status = "[bold red]You are not logged in, please try again...[/bold red]"
                     console.print(e)
