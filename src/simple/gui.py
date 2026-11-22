@@ -23,23 +23,22 @@ from PyQt6.QtWidgets import (
 
 from simple.auth import INSTANCES, check_connection_internet, connexion, is_connected
 from simple.data_import import (
-    create_data,
     create_factor,
     create_germplasm,
     create_sci_obj,
-    data_mapping,
-    get_provenances,
 )
-from simple.datafile_import import (
-    check_for_datafiles,
-    execute_datafiles_upload,
-    get_round_protocol_info,
-)
+from simple.datafile_import import check_for_datafiles
 from simple.erreurs import (
     AuthenticationError,
     NetworkError,
 )
 from simple.experiment import api_find_experiment_by_name, create_experiment
+from simple.import_service import (
+    plan_datafiles_import,
+    run_datafiles_import,
+    run_tabular_import,
+    upload_datafiles,
+)
 from simple.systeme_logs import logger
 
 
@@ -422,13 +421,14 @@ class SimpleGUI(QMainWindow):
         if not self.repertoire_photos: return
 
         # 1. UI interaction must happen in the main thread before starting the background task
-        dict_datafile1, missing_datafile1, dict_datafile2, missing_datafile2, has_datafile2, df_data = check_for_datafiles(self.document_data, self.repertoire_photos)
-        
+        datafile_check = check_for_datafiles(self.document_data, self.repertoire_photos)
+        _, missing_datafile1, _, missing_datafile2, _, _ = datafile_check
+
         if missing_datafile1 or missing_datafile2:
             logger.warning(f"{missing_datafile1} & {missing_datafile2}")
             reply = QMessageBox.question(
-                self, 
-                "Discrepancies found", 
+                self,
+                "Discrepancies found",
                 "Datafiles are missing. Continue despite discrepancies? The import may fail.",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No
@@ -437,86 +437,88 @@ class SimpleGUI(QMainWindow):
                 return
 
         def task():
-            prov_dict, datafile_provenance, missing_provs = get_provenances(self.document_data, self.document_miappe, self.silex_API_Client)
-            if missing_provs:
-                prov_dict, datafile_provenance, _ = get_provenances(self.document_data, self.document_miappe, self.silex_API_Client, create_default=True)
-            
-            sci_obj_uri, _ = create_sci_obj(self.document_data, self.document_miappe, self.silex_API_Client)
-            
-            cam_pos, plant_mask, protocol_found = get_round_protocol_info(self.wd_experience, self.document_data)
-            if not protocol_found:
-                 logger.warning("PlantMask and Camera Position were not found")
-
-            # 2. Use the thread-safe signals for progress
-            def afficher_statut(mess):
-                logger.info(mess)
+            def confirm_protocol(protocol_found):
+                if not protocol_found:
+                    logger.warning("PlantMask and Camera Position were not found")
+                return True
 
             def gestion_barre(nom_tache, total=None, avance=0):
                 safe_total = total if total is not None else 0
                 self.gui_progress_signal.emit(nom_tache, avance, safe_total)
 
-            execute_datafiles_upload(
-                self.document_miappe, self.document_data, df_data, dict_datafile1, dict_datafile2, 
-                has_datafile2, prov_dict, datafile_provenance, sci_obj_uri, cam_pos, plant_mask, 
-                self.login_info, self.silex_API_Client, status_callback=afficher_statut, progress_callback=gestion_barre
+            run_datafiles_import(
+                self.document_miappe,
+                self.document_data,
+                self.wd_experience,
+                self.login_info,
+                self.silex_API_Client,
+                self.repertoire_photos,
+                confirm_create_default_provenances=lambda missing: True,
+                confirm_protocol=confirm_protocol,
+                confirm_discrepancies=lambda missing1, missing2: True,
+                confirm_upload=lambda: True,
+                datafile_check=datafile_check,
+                status_callback=lambda mess: logger.info(mess),
+                progress_callback=gestion_barre,
             )
 
         # 3. Use a lambda for the missing success_callback
         self.with_progress(
-            "Importing datafiles...", 
-            task, 
+            "Importing datafiles...",
+            task,
             lambda r: QMessageBox.information(self, "Success", "Datafiles imported successfully.")
         )
 
     def do_import_data(self):
         def task():
-            morpho_info = data_mapping(self.document_data, self.document_miappe)
+            total_operations = {"value": 0}
 
-            prov_dict, datafile_provenance, missing_provs = get_provenances(self.document_data, self.document_miappe, self.silex_API_Client)
-            if missing_provs:
-                prov_dict, datafile_provenance, _ = get_provenances(self.document_data, self.document_miappe, self.silex_API_Client, create_default=True)
-
-            sci_obj_uri, _ = create_sci_obj(self.document_data, self.document_miappe, self.silex_API_Client)
-            # Calculate the total upfront (number of variables * number of rows)
-            df_length = len(pd.read_excel(self.document_data))
-            total_operations = len(morpho_info) * df_length
+            def confirm_data_mapping(morpho_info):
+                # Calculate the total upfront (number of variables * rows)
+                total_operations["value"] = len(morpho_info) * len(
+                    pd.read_excel(self.document_data)
+                )
+                return True
 
             def afficher_progres(nom_variable, nb_lignes):
                 # Pass the calculated total so the UI knows how to scale
-                self.gui_progress_signal.emit(f"Adding to {nom_variable}", nb_lignes, total_operations)
+                self.gui_progress_signal.emit(
+                    f"Adding to {nom_variable}",
+                    nb_lignes,
+                    total_operations["value"],
+                )
 
-            create_data(
+            run_tabular_import(
                 self.document_data,
                 self.document_miappe,
                 self.login_info,
                 self.silex_API_Client,
-                morpho_info,
-                prov_dict,
-                datafile_provenance,
-                sci_obj_uri,
-                avancement_upload=afficher_progres,
+                confirm_data_mapping=confirm_data_mapping,
+                confirm_create_default_provenances=lambda missing: True,
+                progress_callback=afficher_progres,
             )
-        
+
         # 3. Use a lambda for the missing success_callback
         self.with_progress(
-            "Importing tabular data...", 
-            task, 
+            "Importing tabular data...",
+            task,
             lambda r: QMessageBox.information(self, "Success", "Tabular data imported successfully.")
         )
 
     def do_run_all(self):
         # 1. Handle all UI Pop-ups in the main thread first
         self.repertoire_photos = QFileDialog.getExistingDirectory(self, "Select Photo Directory", self.wd_experience)
-        if not self.repertoire_photos: 
+        if not self.repertoire_photos:
             return
 
         # Check for missing datafiles before locking up the UI
-        dict_datafile1, missing_datafile1, dict_datafile2, missing_datafile2, has_datafile2, df_data = check_for_datafiles(self.document_data, self.repertoire_photos)
-        
+        datafile_check = check_for_datafiles(self.document_data, self.repertoire_photos)
+        _, missing_datafile1, _, missing_datafile2, _, _ = datafile_check
+
         if missing_datafile1 or missing_datafile2:
             reply = QMessageBox.question(
-                self, 
-                "Discrepancies found", 
+                self,
+                "Discrepancies found",
                 "Datafiles are missing. Continue despite discrepancies?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No
@@ -526,61 +528,86 @@ class SimpleGUI(QMainWindow):
 
         # 2. Create ONE master background task that runs everything sequentially
         def master_task():
-            import pandas as pd  # Ensure pandas is imported for the dataframe length check
-            
             # --- 1. Experiment ---
             self.gui_progress_signal.emit("Creating experiment", 0, 0)
             create_experiment(self.document_miappe, self.silex_API_Client, status_callback=self._status_callback)
-            
+
             # --- 2. Germplasm ---
             self.gui_progress_signal.emit("Importing germplasms", 0, 0)
             create_germplasm(self.document_miappe, self.silex_API_Client)
-            
+
             # --- 3. Factors ---
             self.gui_progress_signal.emit("Importing factors", 0, 0)
             create_factor(self.document_miappe, self.silex_API_Client)
-            
+
             # --- 4. Scientific Objects ---
-            sci_obj_uri, _ = create_sci_obj(
-                self.document_data, self.document_miappe, self.silex_API_Client, 
+            sci_obj_uri, created_sci_obj = create_sci_obj(
+                self.document_data, self.document_miappe, self.silex_API_Client,
                 status_callback=self._status_callback
             )
-            
+
             # --- 5. Datafiles ---
             self.gui_progress_signal.emit("Checking provenances", 0, 0)
-            prov_dict, datafile_provenance, missing_provs = get_provenances(self.document_data, self.document_miappe, self.silex_API_Client)
-            if missing_provs:
-                prov_dict, datafile_provenance, _ = get_provenances(self.document_data, self.document_miappe, self.silex_API_Client, create_default=True)
-            
-            cam_pos, plant_mask, _ = get_round_protocol_info(self.wd_experience, self.document_data)
-            
+
             def gestion_barre_df(nom_tache, total=None, avance=0):
                 safe_total = total if total is not None else 0
                 self.gui_progress_signal.emit(nom_tache, avance, safe_total)
 
-            execute_datafiles_upload(
-                self.document_miappe, self.document_data, df_data, dict_datafile1, dict_datafile2, 
-                has_datafile2, prov_dict, datafile_provenance, sci_obj_uri, cam_pos, plant_mask, 
-                self.login_info, self.silex_API_Client, status_callback=self._status_callback, progress_callback=gestion_barre_df
+            plan = plan_datafiles_import(
+                self.document_miappe,
+                self.document_data,
+                self.wd_experience,
+                self.silex_API_Client,
+                self.repertoire_photos,
+                confirm_create_default_provenances=lambda missing: True,
+                confirm_protocol=lambda protocol_found: True,
+                confirm_discrepancies=lambda missing1, missing2: True,
+                confirm_upload=lambda: True,
+                datafile_check=datafile_check,
+                sci_obj=(sci_obj_uri, created_sci_obj),
             )
-            
-            # --- 6. Tabular Data ---
-            morpho_info = data_mapping(self.document_data, self.document_miappe)
-            df_length = len(pd.read_excel(self.document_data))
-            total_operations = len(morpho_info) * df_length
-            
-            def afficher_progres(nom_variable, nb_lignes):
-                self.gui_progress_signal.emit(f"Adding to {nom_variable}", nb_lignes, total_operations)
+            upload_datafiles(
+                plan,
+                self.document_miappe,
+                self.document_data,
+                self.login_info,
+                self.silex_API_Client,
+                status_callback=self._status_callback,
+                progress_callback=gestion_barre_df,
+            )
 
-            create_data(
-                self.document_data, self.document_miappe, self.login_info, self.silex_API_Client,
-                morpho_info, prov_dict, datafile_provenance, sci_obj_uri, avancement_upload=afficher_progres
+            # --- 6. Tabular Data ---
+            total_operations = {"value": 0}
+
+            def confirm_data_mapping(morpho_info):
+                total_operations["value"] = len(morpho_info) * len(
+                    pd.read_excel(self.document_data)
+                )
+                return True
+
+            def afficher_progres(nom_variable, nb_lignes):
+                self.gui_progress_signal.emit(
+                    f"Adding to {nom_variable}",
+                    nb_lignes,
+                    total_operations["value"],
+                )
+
+            run_tabular_import(
+                self.document_data,
+                self.document_miappe,
+                self.login_info,
+                self.silex_API_Client,
+                confirm_data_mapping=confirm_data_mapping,
+                confirm_create_default_provenances=lambda missing: True,
+                progress_callback=afficher_progres,
+                provenances=(plan.prov_dict, plan.datafile_provenance),
+                sci_obj=(sci_obj_uri, created_sci_obj),
             )
 
         # 3. Fire up the single thread using the indeterminate loader we built earlier
         self.with_progress(
-            "Starting batch import...", 
-            master_task, 
+            "Starting batch import...",
+            master_task,
             lambda r: QMessageBox.information(self, "Success", "All imports finished successfully!"),
             indeterminate=True
         )

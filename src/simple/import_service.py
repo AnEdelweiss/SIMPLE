@@ -145,31 +145,41 @@ def run_tabular_import(
     on_scientific_objects_ready=None,
     progress_callback=None,
     status_factory=None,
+    provenances=None,
+    sci_obj=None,
 ):
     """Validate inputs and upload tabular data.
 
     ``confirm_data_mapping(morpho_info)`` and
     ``confirm_create_default_provenances(missing)`` return ``True`` to go on
     and ``False`` to cancel. The remaining callbacks are display-only.
+    ``provenances`` and ``sci_obj`` let a caller that already resolved them
+    (e.g. the GUI batch import) skip the duplicate API lookups.
     """
     with _status(status_factory, PHASE_CHECKING_VARIABLE_MAP):
         morpho_info = data_mapping(document_data, document_miappe)
     if not confirm_data_mapping(morpho_info):
         raise SimpleBaseException("Data import cancelled by the user.")
 
-    prov_dict, datafile_provenance, _ = _resolve_provenances(
-        document_data,
-        document_miappe,
-        silex_API_Client,
-        confirm_create_default_provenances,
-        status_factory,
-    )
+    if provenances is None:
+        prov_dict, datafile_provenance, _ = _resolve_provenances(
+            document_data,
+            document_miappe,
+            silex_API_Client,
+            confirm_create_default_provenances,
+            status_factory,
+        )
+    else:
+        prov_dict, datafile_provenance = provenances
     _notify(on_provenances_ready, prov_dict)
 
-    with _status(status_factory, PHASE_SCIENTIFIC_OBJECTS):
-        sci_obj_uri, created_sci_obj = create_sci_obj(
-            document_data, document_miappe, silex_API_Client
-        )
+    if sci_obj is None:
+        with _status(status_factory, PHASE_SCIENTIFIC_OBJECTS):
+            sci_obj_uri, created_sci_obj = create_sci_obj(
+                document_data, document_miappe, silex_API_Client
+            )
+    else:
+        sci_obj_uri, created_sci_obj = sci_obj
     _notify(
         on_scientific_objects_ready,
         len(sci_obj_uri) - created_sci_obj,
@@ -217,6 +227,8 @@ def plan_datafiles_import(
     on_provenances_ready=None,
     on_scientific_objects_ready=None,
     status_factory=None,
+    provenances=None,
+    sci_obj=None,
 ):
     """Validate everything needed before uploading datafiles.
 
@@ -227,19 +239,25 @@ def plan_datafiles_import(
 
     Returns a :class:`DatafileImportResult` used as the upload plan.
     """
-    prov_dict, datafile_provenance, _ = _resolve_provenances(
-        document_data,
-        document_miappe,
-        silex_API_Client,
-        confirm_create_default_provenances,
-        status_factory,
-    )
+    if provenances is None:
+        prov_dict, datafile_provenance, _ = _resolve_provenances(
+            document_data,
+            document_miappe,
+            silex_API_Client,
+            confirm_create_default_provenances,
+            status_factory,
+        )
+    else:
+        prov_dict, datafile_provenance = provenances
     _notify(on_provenances_ready, prov_dict)
 
-    with _status(status_factory, PHASE_SCIENTIFIC_OBJECTS):
-        sci_obj_uri, created_sci_obj = create_sci_obj(
-            document_data, document_miappe, silex_API_Client
-        )
+    if sci_obj is None:
+        with _status(status_factory, PHASE_SCIENTIFIC_OBJECTS):
+            sci_obj_uri, created_sci_obj = create_sci_obj(
+                document_data, document_miappe, silex_API_Client
+            )
+    else:
+        sci_obj_uri, created_sci_obj = sci_obj
     _notify(
         on_scientific_objects_ready,
         len(sci_obj_uri) - created_sci_obj,
@@ -345,6 +363,8 @@ def run_datafiles_import(
     status_callback=None,
     progress_callback=None,
     status_factory=None,
+    provenances=None,
+    sci_obj=None,
 ):
     """Plan then upload datafiles in one call (used by the GUI)."""
     plan = plan_datafiles_import(
@@ -361,6 +381,8 @@ def run_datafiles_import(
         on_provenances_ready=on_provenances_ready,
         on_scientific_objects_ready=on_scientific_objects_ready,
         status_factory=status_factory,
+        provenances=provenances,
+        sci_obj=sci_obj,
     )
     return upload_datafiles(
         plan,
