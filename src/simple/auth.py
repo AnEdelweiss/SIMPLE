@@ -54,15 +54,29 @@ def get_login():
 
 # On deconnecte le client avant toute nouvelle connexion
 def deconnexion(silex_API_Client) -> bool:
-    if "Authorization" in silex_API_Client.default_headers:
-        try:
-            silex.AuthenticationApi(silex_API_Client).logout
-            if "Authorization" in silex_API_Client.default_headers:
-                del silex_API_Client.default_headers["Authorization"]
-        except Exception as e:
-            console.print(f"[bold red]Error during disconnection : {e}[/bold red]")
-            return False
-    return True
+    """Logout from the server and always clear the local auth header.
+
+    Returns True if there was no token or the server logout succeeded, False
+    if the server logout failed (API error, network error, timeout). The local
+    "Authorization" header is removed in every case and no exception is raised,
+    so callers (e.g. connexion) can proceed regardless of the return value.
+    """
+    import urllib3
+
+    if "Authorization" not in silex_API_Client.default_headers:
+        return True
+    try:
+        # logout must be CALLED; short timeout since the server logout may hang
+        silex.AuthenticationApi(silex_API_Client).logout(_request_timeout=10)
+        return True
+    except (silex.rest.ApiException, urllib3.exceptions.HTTPError, OSError) as e:
+        logger.warning(f"Server logout failed: {e!r}")
+        console.print(
+            f"[yellow]Warning: server logout failed ({e}); local session cleared.[/yellow]"
+        )
+        return False
+    finally:
+        silex_API_Client.default_headers.pop("Authorization", None)
 
 
 # Je verifie que l'utilisateur a accès à internet.
