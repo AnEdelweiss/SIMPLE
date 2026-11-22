@@ -415,8 +415,9 @@ def create_sci_obj(
             if status_callback and (
                 created_sci_obj % 50 == 0 or created_sci_obj == len(df_sci_obj)
             ):
+                # Plain text: the CLI/GUI adds its own prefix and colours.
                 status_callback(
-                    f"[bold green][✓] {created_sci_obj} scientific objects created on {len(df_sci_obj)} total.[/bold green]"
+                    f"{created_sci_obj} scientific objects created on {len(df_sci_obj)} total."
                 )
     # écriture des metadata des objets scientifiques sur le excel
     if dtos_to_export:
@@ -439,6 +440,20 @@ def create_sci_obj(
                 df_export.to_excel(writer, sheet_name="Observation Unit", index=False)
         logger.info("The scientific object sheet was successfully created/edited.")
     return sci_obj_uri, created_sci_obj
+
+
+def find_datafile_config(datafile_provenance, document_data):
+    """Return the 'data file' sheet row matching *document_data*, if any.
+
+    The same suffix lookup was repeated in get_provenances, create_data and
+    the datafile uploader; keeping it in one place makes the offline dry run
+    able to reuse it too.
+    """
+    datafile_name = os.path.basename(document_data)
+    for suffix, config in datafile_provenance.items():
+        if datafile_name == suffix:
+            return config
+    return None
 
 
 def get_provenances(
@@ -470,40 +485,38 @@ def get_provenances(
 
     prov_dict = {}
     missing_prov = []
-    datafile_name = os.path.basename(document_data)
+    config = find_datafile_config(datafile_provenance, document_data)
+    if config is not None:
+        for prov_name in config.values():
+            if (
+                pd.isna(prov_name)
+                or prov_name == "RGBImage"
+                or prov_name == "Archive"
+            ):
+                continue
 
-    for suffix, config in datafile_provenance.items():
-        if datafile_name == suffix:
-            for prov_name in config.values():
-                if (
-                    pd.isna(prov_name)
-                    or prov_name == "RGBImage"
-                    or prov_name == "Archive"
-                ):
-                    continue
-
-                prov_src = data_api.search_provenance(name=prov_name)["result"]
-                if prov_src:
-                    prov_dict[prov_name] = prov_src[0].uri
-                    logger.info(
-                        f"Provenance found : {prov_name} URI: {prov_src[0].uri}"
-                    )
+            prov_src = data_api.search_provenance(name=prov_name)["result"]
+            if prov_src:
+                prov_dict[prov_name] = prov_src[0].uri
+                logger.info(
+                    f"Provenance found : {prov_name} URI: {prov_src[0].uri}"
+                )
+            else:
+                # Création par default si la provenance n'a pas été crée manuellement
+                if not create_default:
+                    missing_prov.append(prov_name)
                 else:
-                    # Création par default si la provenance n'a pas été crée manuellement
-                    if not create_default:
-                        missing_prov.append(prov_name)
-                    else:
-                        logger.info(f"Creating default provenance : {prov_name}")
-                        body = silex.ProvenanceCreationDTO(
-                            name=prov_name,
-                            description="This provenance was created by default using SIMPLE. You may want to add agents, activities etc...",
-                            prov_agent=[],
-                            prov_activity=[],
-                        )
+                    logger.info(f"Creating default provenance : {prov_name}")
+                    body = silex.ProvenanceCreationDTO(
+                        name=prov_name,
+                        description="This provenance was created by default using SIMPLE. You may want to add agents, activities etc...",
+                        prov_agent=[],
+                        prov_activity=[],
+                    )
 
-                        data_api.create_provenance(body=body)
-                        prov_src = data_api.search_provenance(name=prov_name)["result"]
-                        prov_dict[prov_name] = prov_src[0].uri
+                    data_api.create_provenance(body=body)
+                    prov_src = data_api.search_provenance(name=prov_name)["result"]
+                    prov_dict[prov_name] = prov_src[0].uri
 
     return prov_dict, datafile_provenance, missing_prov
 
@@ -548,30 +561,27 @@ def create_data(
     provenance_datafile2 = None
     rdf_type_2 = None
     rdf_type_1 = None
-    datafile_name = os.path.basename(document_data)
-
-    for suffix, config in datafile_provenance.items():
-        if datafile_name == suffix:
-            provenance_morpho = (
-                config.get("prov_morpho_parameters")
-                if not pd.isna(config.get("prov_morpho_parameters"))
-                else None
-            )
-            provenance_datafile1 = (
-                config.get("prov_datafiles1")
-                if not pd.isna(config.get("prov_datafiles1"))
-                else None
-            )
-            rdf1 = config.get("rdf_type_datafile1")
-            rdf_type_1 = rdf1 if not pd.isna(rdf1) else None
-            provenance_datafile2 = (
-                config.get("prov_datafiles2")
-                if not pd.isna(config.get("prov_datafiles2"))
-                else None
-            )
-            rdf2 = config.get("rdf_type_datafile2")
-            rdf_type_2 = rdf2 if not pd.isna(rdf2) else None
-            break
+    config = find_datafile_config(datafile_provenance, document_data)
+    if config is not None:
+        provenance_morpho = (
+            config.get("prov_morpho_parameters")
+            if not pd.isna(config.get("prov_morpho_parameters"))
+            else None
+        )
+        provenance_datafile1 = (
+            config.get("prov_datafiles1")
+            if not pd.isna(config.get("prov_datafiles1"))
+            else None
+        )
+        rdf1 = config.get("rdf_type_datafile1")
+        rdf_type_1 = rdf1 if not pd.isna(rdf1) else None
+        provenance_datafile2 = (
+            config.get("prov_datafiles2")
+            if not pd.isna(config.get("prov_datafiles2"))
+            else None
+        )
+        rdf2 = config.get("rdf_type_datafile2")
+        rdf_type_2 = rdf2 if not pd.isna(rdf2) else None
 
     # FORMATAGE DONNÉES
     if (

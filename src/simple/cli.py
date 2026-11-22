@@ -186,7 +186,9 @@ def ui_import_sci_obj(document_data, document_miappe, silex_API_Client):
     )
 
     def afficher_statut(mess):
-        console.print(f"[bold cyan][+] [bold cyan][bold green]{mess}[/bold green]")
+        console.print(
+            f"[bold cyan][+] [bold cyan][bold green][✓] {mess}[/bold green]"
+        )
 
     with console.status(
         "[green]Importing/Searching Scientific objects on OpenSilex instance...[/green]",

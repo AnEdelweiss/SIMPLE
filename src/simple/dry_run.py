@@ -1,18 +1,15 @@
 """Offline validation of an experiment folder (``simple --dry-run <folder>``).
 
 Nothing is sent to any server and no login is needed: the MIAPPE template is
-parsed, its sheets are counted, and every datafile referenced by the tabular
-data files is looked up on disk.
+validated, its sheets are counted, and every datafile referenced by the
+tabular data files is looked up on disk.
 """
 
 import os
 
-import pandas as pd
-
 from simple.datafile_import import check_for_datafiles
 from simple.erreurs import DataImportError
-
-MIAPPE_SHEETS = ("experiment", "factors", "germplasm", "mapping_table_variables")
+from simple.validation import validate_miappe_template
 
 
 def find_miappe(folder):
@@ -34,14 +31,10 @@ def dry_run(folder):
     lines, ok = [], True
     miappe = find_miappe(folder)
     lines.append(f"MIAPPE template: {os.path.basename(miappe)}")
-    sheets = pd.ExcelFile(miappe).sheet_names
-    for name in MIAPPE_SHEETS:
-        if name not in sheets:
-            ok = False
-            lines.append(f"  [ERROR] missing sheet '{name}'")
-            continue
-        rows = len(pd.read_excel(miappe, sheet_name=name, header=1).dropna(how="all"))
-        lines.append(f"  sheet '{name}': {rows} row(s)")
+
+    report = validate_miappe_template(miappe)
+    lines.extend(report.lines())
+    ok &= report.ok
 
     for f in sorted(os.listdir(folder)):
         path = os.path.join(folder, f)

@@ -563,3 +563,18 @@ class TestDataImport:
             create_sci_obj("dummy_data.xlsx", "dummy_miappe.xlsx", fake_client)
 
         assert "Exp_Inconnue" in str(error_info.value)
+
+
+def test_find_datafile_config_matches_basename():
+    from simple.data_import import find_datafile_config
+
+    config = {"prov_morpho_parameters": "Prov_Test"}
+    assert (
+        find_datafile_config({"my_data.xlsx": config}, "/tmp/my_data.xlsx") is config
+    )
+
+
+def test_find_datafile_config_returns_none_without_match():
+    from simple.data_import import find_datafile_config
+
+    assert find_datafile_config({"other.xlsx": {}}, "/tmp/my_data.xlsx") is None

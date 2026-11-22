@@ -10,7 +10,7 @@ from lxml import etree as ET
 
 from simple.__init__ import __version__
 from simple.auth import connexion
-from simple.data_import import format_timestamps
+from simple.data_import import find_datafile_config, format_timestamps
 from simple.erreurs import DataImportError, SimpleBaseException
 from simple.systeme_logs import logger
 
@@ -265,22 +265,20 @@ def execute_datafiles_upload(
         )
 
     dat_api = silex.DataApi(silex_API_Client)
-    datafile_name = os.path.basename(document_data)
     provenance_datafile1 = None
     provenance_datafile2 = None
     rdf_type_1 = None
     rdf_type_2 = None
-    for suffix, config in datafile_provenance.items():
-        if datafile_name == suffix:
-            val1 = config.get("prov_datafiles1")
-            rdf1 = config.get("rdf_type_datafile1")
-            val2 = config.get("prov_datafiles2")
-            rdf2 = config.get("rdf_type_datafile2")
-            provenance_datafile1 = prov_dict.get(val1) if not pd.isna(val1) else None
-            rdf_type_1 = rdf1 if not pd.isna(rdf1) else None
-            provenance_datafile2 = prov_dict.get(val2) if not pd.isna(val2) else None
-            rdf_type_2 = rdf2 if not pd.isna(rdf2) else None
-            break
+    config = find_datafile_config(datafile_provenance, document_data)
+    if config is not None:
+        val1 = config.get("prov_datafiles1")
+        rdf1 = config.get("rdf_type_datafile1")
+        val2 = config.get("prov_datafiles2")
+        rdf2 = config.get("rdf_type_datafile2")
+        provenance_datafile1 = prov_dict.get(val1) if not pd.isna(val1) else None
+        rdf_type_1 = rdf1 if not pd.isna(rdf1) else None
+        provenance_datafile2 = prov_dict.get(val2) if not pd.isna(val2) else None
+        rdf_type_2 = rdf2 if not pd.isna(rdf2) else None
     if status_callback:
         status_callback(
             f"[green][✓] Provenance for datafile1 found : {provenance_datafile1}[/green]"
