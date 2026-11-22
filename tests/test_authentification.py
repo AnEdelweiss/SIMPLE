@@ -1,7 +1,9 @@
 from unittest.mock import MagicMock, patch
 
+import opensilexClientToolsPython as silex
 import pytest
 import requests
+import urllib3
 
 from simple.auth import (
     check_connection_internet,
@@ -63,30 +65,50 @@ class TestAuth:
 
     @patch("simple.auth.silex.AuthenticationApi")
     def test_deconnexion_success(self, MockAuthApi):
-        """Teste la déconnexion et la suppression du token"""
+        """Logout is really called and the token is removed"""
         mock_client = MagicMock()
         mock_client.default_headers = {"Authorization": "Bearer token123"}
 
         result = deconnexion(mock_client)
 
         assert result is True
-        # L'en-tête doit avoir été supprimé
+        MockAuthApi.assert_called_once_with(mock_client)
+        MockAuthApi.return_value.logout.assert_called_once()
         assert "Authorization" not in mock_client.default_headers
 
     @patch("simple.auth.silex.AuthenticationApi")
     def test_deconnexion_failure(self, MockAuthApi):
-        """Teste que la fonction attrape l'erreur sans crasher si la déco échoue"""
+        """Server error: no exception, header still removed, returns False"""
         mock_client = MagicMock()
         mock_client.default_headers = {"Authorization": "Bearer token123"}
-
-        # On simule une erreur lors de l'appel à l'API
-        MockAuthApi.side_effect = Exception("Erreur serveur inattendue")
+        MockAuthApi.return_value.logout.side_effect = silex.rest.ApiException(
+            status=500, reason="Server error"
+        )
 
         result = deconnexion(mock_client)
 
         assert result is False
-        # Comme ça a planté, l'en-tête n'a pas pu être supprimé
-        assert "Authorization" in mock_client.default_headers
+        assert "Authorization" not in mock_client.default_headers
+
+    @patch("simple.auth.silex.AuthenticationApi")
+    def test_deconnexion_network_error(self, MockAuthApi):
+        mock_client = MagicMock()
+        mock_client.default_headers = {"Authorization": "Bearer token123"}
+        MockAuthApi.return_value.logout.side_effect = urllib3.exceptions.MaxRetryError(
+            None, "/security/logout"
+        )
+
+        assert deconnexion(mock_client) is False
+        assert "Authorization" not in mock_client.default_headers
+
+    @patch("simple.auth.silex.AuthenticationApi")
+    def test_deconnexion_no_header(self, MockAuthApi):
+        """No token: nothing to do, no server call"""
+        mock_client = MagicMock()
+        mock_client.default_headers = {}
+
+        assert deconnexion(mock_client) is True
+        MockAuthApi.return_value.logout.assert_not_called()
 
     # ==========================================
     # TESTS POUR CONNEXION
