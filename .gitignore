@@ -5,7 +5,11 @@ build/
 dist/
 wheels/
 *.egg-info
-exp_database
+exp_database/*
+!exp_database/dummy_experiment/
+docs/_site/
+*.spec
+*.cast
 src/simple/logs_SIMPLE
 essais
 toolbox/

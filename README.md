@@ -9,7 +9,7 @@
 
   V see here for a Quick Demo ! V (click to zoom in)
 
-![cli](simple.gif "Asciinema")
+![cli](docs/simple.gif "Asciinema")
 
 or here : [asciinema link](https://asciinema.org/a/vgznnODoenqWjDki)
 
