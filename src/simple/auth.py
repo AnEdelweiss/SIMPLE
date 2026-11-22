@@ -63,11 +63,20 @@ def deconnexion(silex_API_Client) -> bool:
     """
     import urllib3
 
-    if "Authorization" not in silex_API_Client.default_headers:
+    headers = silex_API_Client.default_headers
+    if "Authorization" not in headers:
         return True
+    # The generated client's logout() crashes client-side with KeyError('Accept')
+    # unless an Accept header is set, and the server answers with an empty body
+    # that the client then fails to parse as JSON (JSONDecodeError). Both are
+    # client quirks: with Accept set, a JSONDecodeError means the server replied 2xx.
+    added_accept = "Accept" not in headers
+    if added_accept:
+        headers["Accept"] = "application/json"
     try:
-        # logout must be CALLED; short timeout since the server logout may hang
         silex.AuthenticationApi(silex_API_Client).logout(_request_timeout=10)
+        return True
+    except json.JSONDecodeError:
         return True
     except (silex.rest.ApiException, urllib3.exceptions.HTTPError, OSError) as e:
         logger.warning(f"Server logout failed: {e!r}")
@@ -76,7 +85,9 @@ def deconnexion(silex_API_Client) -> bool:
         )
         return False
     finally:
-        silex_API_Client.default_headers.pop("Authorization", None)
+        headers.pop("Authorization", None)
+        if added_accept:
+            headers.pop("Accept", None)
 
 
 # Je verifie que l'utilisateur a accès à internet.

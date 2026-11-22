@@ -77,6 +77,26 @@ class TestAuth:
         assert "Authorization" not in mock_client.default_headers
 
     @patch("simple.auth.silex.AuthenticationApi")
+    def test_deconnexion_empty_body_counts_as_success(self, MockAuthApi):
+        """Client fails to parse the server's empty logout reply: still a success,
+        and the temporary Accept header must not leak."""
+        import json
+
+        mock_client = MagicMock()
+        mock_client.default_headers = {"Authorization": "Bearer token123"}
+        seen = {}
+
+        def fake_logout(**kwargs):
+            seen["accept"] = mock_client.default_headers.get("Accept")
+            raise json.JSONDecodeError("Expecting value", "", 0)
+
+        MockAuthApi.return_value.logout.side_effect = fake_logout
+
+        assert deconnexion(mock_client) is True
+        assert seen["accept"] == "application/json"
+        assert mock_client.default_headers == {}
+
+    @patch("simple.auth.silex.AuthenticationApi")
     def test_deconnexion_failure(self, MockAuthApi):
         """Server error: no exception, header still removed, returns False"""
         mock_client = MagicMock()
