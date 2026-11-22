@@ -515,9 +515,10 @@ def execute_datafiles_upload(
         # ]
         #  # # TEST TEST TEST
 
-        status_callback(
-            f"[bold green]{len(mask_data) - len(mask_to_upload)} [cyan]Datafiles2 exists on[/cyan] {len(mask_data)}[cyan] total[/bold green]"
-        )
+        if status_callback:
+            status_callback(
+                f"[bold green]{len(mask_data) - len(mask_to_upload)} [cyan]Datafiles2 exists on[/cyan] {len(mask_data)}[cyan] total[/bold green]"
+            )
         logger.info(
             f"[bold green]{len(mask_data) - len(mask_to_upload)} [cyan]Datafiles2 exists on[/cyan] {len(mask_data)}[cyan] total[/bold green]"
         )

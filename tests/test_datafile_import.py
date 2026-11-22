@@ -146,6 +146,34 @@ class TestExecuteDatafilesUpload:
             for call in status.call_args_list
         )
 
+    @patch("simple.datafile_import.connect")
+    @patch("simple.datafile_import.get_existing_datafiles")
+    @patch("simple.datafile_import.silex.DataApi")
+    @patch("simple.datafile_import.silex.ExperimentsApi")
+    def test_datafile2_without_status_callback(
+        self, MockExpApi, MockDataApi, mock_existing, mock_connect, tmp_path
+    ):
+        exp = MagicMock(uri="exp:1")
+        MockExpApi.return_value.search_experiments.return_value = {"result": [exp]}
+        data_api = MockDataApi.return_value
+        mock_existing.return_value = set()
+        data_api.get_data_file_descriptions_by_search.return_value = {
+            "result": [
+                MagicMock(
+                    target="so:1",
+                    _date="2026-08-26T12:12:12.000+0000",
+                    uri="datafile:1",
+                )
+            ]
+        }
+
+        result = execute_datafiles_upload(
+            **_upload_kwargs(tmp_path, datafile2=True)
+        )
+
+        assert result.created == 2
+        assert result.failed == 0
+
     @patch("simple.upload.time.sleep")
     @patch("simple.datafile_import.connect")
     @patch("simple.datafile_import.get_existing_datafiles")

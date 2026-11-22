@@ -162,7 +162,7 @@ def create_germplasm(miappe_path, api_client):
                             f"[bold red]\nPlease check if the species you associated with [cyan]{germ_name}[/cyan] in the miappe template is correct \n Tip : You have to declare all the species before the varieties"
                         )
                     species_uri[germ_species] = spec_src[0].uri
-                # On check si notre variété/espèce existe, et si elle existe batch_size on la crée
+                # On check si notre variété/espèce existe, et si elle n'existe pas on la crée
                 germ_search = germplasm_api.search_germplasm(
                     name=f"^{germ_name}$", rdf_type=rdf_type
                 )["result"]
@@ -505,7 +505,7 @@ def get_provenances(
                     f"Provenance found : {prov_name} URI: {prov_src[0].uri}"
                 )
             else:
-                # Création par default si la provenance n'a batch_size été crée manuellement
+                # Création par default si la provenance n'a pas été crée manuellement
                 if not create_default:
                     missing_prov.append(prov_name)
                 else:
