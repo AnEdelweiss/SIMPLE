@@ -9,14 +9,18 @@ import os
 
 from simple.datafile_import import check_for_datafiles
 from simple.errors import DataImportError
-from simple.validation import validate_miappe_template
+from simple.validation import READ_ERRORS, validate_miappe_template
 
 
 def find_miappe(folder):
     """Return the filled MIAPPE template in *folder* (not the generated output)."""
+    try:
+        names = os.listdir(folder)
+    except OSError as e:
+        raise DataImportError(f"Cannot read {folder}: {e}")
     hits = sorted(
         f
-        for f in os.listdir(folder)
+        for f in names
         if f.lower().endswith(".xlsx") and "miappe" in f.lower()
     )
     if not hits:
@@ -42,7 +46,7 @@ def dry_run(folder):
             continue
         try:
             _, missing1, _, missing2, _, df = check_for_datafiles(path, folder)
-        except DataImportError as e:
+        except (DataImportError, *READ_ERRORS) as e:
             ok = False
             lines.append(f"{f}: [ERROR] {e}")
             continue

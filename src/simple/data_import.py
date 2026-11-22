@@ -162,7 +162,7 @@ def create_germplasm(miappe_path, api_client):
                             f"[bold red]\nPlease check if the species you associated with [cyan]{germ_name}[/cyan] in the miappe template is correct \n Tip : You have to declare all the species before the varieties"
                         )
                     species_uri[germ_species] = spec_src[0].uri
-                # On check si notre variété/espèce existe, et si elle existe pas on la crée
+                # On check si notre variété/espèce existe, et si elle existe batch_size on la crée
                 germ_search = germplasm_api.search_germplasm(
                     name=f"^{germ_name}$", rdf_type=rdf_type
                 )["result"]
@@ -185,6 +185,8 @@ def create_germplasm(miappe_path, api_client):
                 urllib3.exceptions.HTTPError,
                 OSError,
                 KeyError,
+                IndexError,
+                AttributeError,
                 ValueError,
                 TypeError,
                 DataImportError,
@@ -261,8 +263,8 @@ def create_sci_obj(
     )
     if api_response["result"]:
         factors_levels_uri = {}
-        for resultat in api_response["result"]:
-            for factor_level in resultat.levels:
+        for factor_result in api_response["result"]:
+            for factor_level in factor_result.levels:
                 factors_levels_uri[factor_level.name] = factor_level.uri
     else:
         factors_levels_uri, _ = create_factor(miappe_path, api_client)
@@ -503,7 +505,7 @@ def get_provenances(
                     f"Provenance found : {prov_name} URI: {prov_src[0].uri}"
                 )
             else:
-                # Création par default si la provenance n'a pas été crée manuellement
+                # Création par default si la provenance n'a batch_size été crée manuellement
                 if not create_default:
                     missing_prov.append(prov_name)
                 else:
@@ -650,7 +652,7 @@ def create_data(
     summary = UploadSummary()
     for key, value in morpho_info.items():
         logfile[value] = []
-        nom_colonne = key
+        column_name = key
         variable_search = variables_api.search_variables(name=value)["result"]
         all_existing_data = data_api.search_data_list(
             variables=[variable_search[0].uri],
@@ -665,9 +667,9 @@ def create_data(
                 )
                 existing_data_cache.add((data.target, data._date, round_order))
         # GET/CREATE NUMERICAL DATA
-        pas = 4000
-        for slc in range(0, len(df_data), pas):
-            df_slice = df_data.iloc[slc : slc + pas]
+        batch_size = 4000
+        for slc in range(0, len(df_data), batch_size):
+            df_slice = df_data.iloc[slc : slc + batch_size]
             bodies = []
             for row in df_slice.to_dict("records"):
                 target_uri = sci_obj_uri[row["Plant ID"]]
@@ -709,7 +711,7 @@ def create_data(
                             value=row[key],
                             metadata={
                                 "Round Order": row.get("Round Order"),
-                                "Nom Colonne": nom_colonne,
+                                "Nom Colonne": column_name,
                                 "Imported with": f"SIMPLE {__version__}",
                             },
                             provenance=silex.DataProvenanceModel(
@@ -736,7 +738,7 @@ def create_data(
                     )
                     summary.failed += len(bodies)
                     summary.failed_items.append(
-                        f"{value} rows {slc}-{slc + len(bodies) - 1}"
+                        f"{value} batch starting at row {slc}"
                     )
                     continue
                 summary.created += len(bodies)

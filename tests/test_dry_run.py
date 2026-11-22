@@ -27,3 +27,14 @@ def test_dry_run_errors(tmp_path):
         dry_run(str(tmp_path / "nope"))
     with pytest.raises(DataImportError):
         dry_run(str(tmp_path))  # no template
+
+
+def test_dry_run_reports_corrupt_tabular_file(tmp_path):
+    folder = tmp_path / "exp"
+    shutil.copytree(DUMMY, folder)
+    (folder / "RGB1_tabular_data.xlsx").write_text("not an excel workbook")
+
+    lines, ok = dry_run(str(folder))
+
+    assert not ok
+    assert any("RGB1_tabular_data.xlsx: [ERROR]" in line for line in lines)

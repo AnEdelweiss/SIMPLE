@@ -374,6 +374,20 @@ class SimpleGUI(QMainWindow):
         html_msg = f'<span style="color: #008000;">{clean_msg}</span>'
         self.log_emitter.log_signal.emit(html_msg, clean_msg.strip())
 
+    def _show_import_summary(self, summary, success_message):
+        if summary.failed:
+            QMessageBox.warning(
+                self,
+                "Import finished with failures",
+                f"{summary.describe()}\n\nSee the logs for details.",
+            )
+        else:
+            QMessageBox.information(
+                self,
+                "Success",
+                f"{success_message}\n{summary.describe()}",
+            )
+
     def do_create_experiment(self):
         def task():
             return create_experiment(
@@ -483,14 +497,11 @@ class SimpleGUI(QMainWindow):
                 datafile_check=datafile_check,
                 status_callback=lambda mess: logger.info(mess),
                 progress_callback=update_progress_bar,
+                wrap_errors=False,
             )
 
         def finish(summary):
-            QMessageBox.information(
-                self,
-                "Success",
-                f"Datafiles imported successfully.\n{summary.describe()}",
-            )
+            self._show_import_summary(summary, "Datafiles imported successfully.")
 
         self.with_progress("Importing datafiles...", task, finish)
 
@@ -524,11 +535,8 @@ class SimpleGUI(QMainWindow):
             )
 
         def finish(result):
-            QMessageBox.information(
-                self,
-                "Success",
-                f"Tabular data imported successfully.\n"
-                f"{result.upload_summary.describe()}",
+            self._show_import_summary(
+                result.upload_summary, "Tabular data imported successfully."
             )
 
         self.with_progress("Importing tabular data...", task, finish)
@@ -605,6 +613,7 @@ class SimpleGUI(QMainWindow):
                     self.api_client,
                     status_callback=self._status_callback,
                     progress_callback=update_datafile_progress_bar,
+                    wrap_errors=False,
                 )
             )
 
@@ -640,11 +649,7 @@ class SimpleGUI(QMainWindow):
 
         # 3. Fire up the single thread using the indeterminate loader we built earlier
         def finish(summary):
-            QMessageBox.information(
-                self,
-                "Success",
-                f"All imports finished.\n{summary.describe()}",
-            )
+            self._show_import_summary(summary, "All imports finished.")
 
         self.with_progress(
             "Starting batch import...",

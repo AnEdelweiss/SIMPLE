@@ -4,9 +4,19 @@ This module deliberately has no Rich/console imports: the offline dry run and
 the importers can share the same checks, and callers format the report.
 """
 
+import zipfile
 from dataclasses import dataclass
 
+import openpyxl.utils.exceptions
 import pandas as pd
+
+READ_ERRORS = (
+    OSError,
+    ValueError,
+    TypeError,
+    zipfile.BadZipFile,
+    openpyxl.utils.exceptions.InvalidFileException,
+)
 
 REQUIRED_SHEETS = (
     "experiment",
@@ -80,7 +90,7 @@ def validate_miappe_template(document):
     """Validate the required sheets, columns and first-row cells of *document*."""
     try:
         sheet_names = pd.ExcelFile(document).sheet_names
-    except (OSError, ValueError, TypeError) as exc:
+    except READ_ERRORS as exc:
         return TemplateReport(
             path=document,
             sheet_rows=(),
@@ -94,7 +104,7 @@ def validate_miappe_template(document):
             continue
         try:
             dataframe = read_miappe_sheet(document, name)
-        except (OSError, ValueError, TypeError) as exc:
+        except READ_ERRORS as exc:
             issues.append(Issue("error", f"sheet '{name}': cannot read ({exc})"))
             continue
 

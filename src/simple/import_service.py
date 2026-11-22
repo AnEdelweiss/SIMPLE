@@ -50,6 +50,8 @@ IMPORT_STEP_ERRORS = (
     urllib3.exceptions.HTTPError,
     OSError,
     KeyError,
+    IndexError,
+    AttributeError,
     ValueError,
     TypeError,
     zipfile.BadZipFile,
@@ -320,6 +322,7 @@ def upload_datafiles(
     *,
     status_callback=None,
     progress_callback=None,
+    wrap_errors=True,
 ):
     """Upload the datafiles described by a :func:`plan_datafiles_import` plan.
 
@@ -344,6 +347,9 @@ def upload_datafiles(
             progress_callback=progress_callback,
         )
     except IMPORT_STEP_ERRORS as e:
+        if not wrap_errors:
+            # The GUI shows the original exception in its error dialog.
+            raise
         logger.exception(f"Datafile upload failed : {e}")
         raise SimpleBaseException(
             "An error occurred during datafile upload. Please see the logs for more information."
@@ -371,6 +377,7 @@ def run_datafiles_import(
     status_factory=None,
     provenances=None,
     sci_obj=None,
+    wrap_errors=True,
 ):
     """Plan then upload datafiles in one call (used by the GUI)."""
     plan = plan_datafiles_import(
@@ -398,4 +405,5 @@ def run_datafiles_import(
         api_client,
         status_callback=status_callback,
         progress_callback=progress_callback,
+        wrap_errors=wrap_errors,
     )

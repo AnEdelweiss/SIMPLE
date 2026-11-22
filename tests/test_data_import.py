@@ -639,6 +639,6 @@ def test_create_data_records_failed_batches(
 
     assert result.created == 0
     assert result.failed == 1
-    assert result.failed_items == ["var_taille rows 0-0"]
+    assert result.failed_items == ["var_taille batch starting at row 0"]
     assert data_api.add_list_data.call_count == 3
     assert mock_sleep.called

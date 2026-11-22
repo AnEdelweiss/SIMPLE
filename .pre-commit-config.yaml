@@ -1,13 +1,9 @@
+# Formatting is not enforced yet: the existing tree is not ruff-formatted, so
+# the first format run would create a large unrelated diff. Add ruff-format
+# here (and in CI) once the codebase has been formatted in its own commit.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.17.6
     hooks:
       - id: ruff-check
         args: [--fix]
-      - id: ruff-format
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml

@@ -212,6 +212,32 @@ class TestRunTabularImport:
         assert str(error_info.value).startswith("Error during import :")
 
 
+    @patch("simple.import_service.create_data")
+    @patch("simple.import_service.create_sci_obj")
+    @patch("simple.import_service.get_provenances")
+    @patch("simple.import_service.data_mapping")
+    def test_index_error_from_missing_variable_is_wrapped(
+        self, mock_mapping, mock_provenances, mock_sci_obj, mock_create_data
+    ):
+        mock_mapping.return_value = {"Taille": "var_taille"}
+        mock_provenances.return_value = ({}, {}, [])
+        mock_sci_obj.return_value = ({}, 0)
+        # Simulates variable_search[0] on an empty server-side search result.
+        mock_create_data.side_effect = IndexError("list index out of range")
+
+        with pytest.raises(SimpleBaseException) as error_info:
+            run_tabular_import(
+                "data.xlsx",
+                "miappe.xlsx",
+                "login",
+                "client",
+                confirm_data_mapping=always(True),
+                confirm_create_default_provenances=always(True),
+            )
+
+        assert str(error_info.value).startswith("Error during import :")
+
+
 class TestPlanDatafilesImport:
     @patch("simple.import_service.check_for_datafiles")
     @patch("simple.import_service.get_round_protocol_info")
@@ -434,6 +460,13 @@ class TestUploadDatafiles:
             "An error occurred during datafile upload. Please see the logs for more information."
         )
 
+    @patch("simple.import_service.execute_datafiles_upload")
+    def test_upload_errors_can_be_left_unwrapped(self, mock_execute):
+        mock_execute.side_effect = OSError("disk gone")
+
+        with pytest.raises(OSError):
+            upload_datafiles(MagicMock(), "m", "d", "login", "client", wrap_errors=False)
+
     @patch("simple.import_service.upload_datafiles")
     @patch("simple.import_service.plan_datafiles_import")
     def test_run_datafiles_import_composes_both_steps(self, mock_plan, mock_upload):
@@ -463,4 +496,5 @@ class TestUploadDatafiles:
             "client",
             status_callback=None,
             progress_callback=None,
+            wrap_errors=True,
         )

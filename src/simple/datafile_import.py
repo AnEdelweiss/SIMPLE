@@ -23,6 +23,8 @@ DATAFILE_UPLOAD_ERRORS = (
     urllib3.exceptions.HTTPError,
     OSError,
     KeyError,
+    IndexError,
+    AttributeError,
     ValueError,
     TypeError,
 )
@@ -353,7 +355,7 @@ def execute_datafiles_upload(
     timelimit = datetime.datetime.now() + datetime.timedelta(minutes=30)
 
     def process_datafile1(img):
-        path_ou_post = 0
+        path_or_post = 0
         round_order = img.get("Round Order")
         cam_pos_round = cam_pos.get(round_order, {})
         settings_dict = {}
@@ -378,7 +380,7 @@ def execute_datafiles_upload(
                 "experiments": [exp_uri],
             },
         }
-        if path_ou_post == 1:
+        if path_or_post == 1:
             with_retry(
                 lambda: dat_api.post_data_file_paths(
                     body=[
@@ -407,9 +409,9 @@ def execute_datafiles_upload(
                 )
             )
 
-    nom_tache_datafile1 = "[bold blue]Uploading datafiles 1...[/bold blue]"
+    datafile1_task_name = "[bold blue]Uploading datafiles 1...[/bold blue]"
     if progress_callback and len(corr_to_upload) > 0:
-        progress_callback(nom_tache_datafile1, total=len(corr_to_upload))
+        progress_callback(datafile1_task_name, total=len(corr_to_upload))
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         futures = {
@@ -432,7 +434,7 @@ def execute_datafiles_upload(
                         "[bold yellow] [!] A datafile failed to upload, please check the logs for informations, continuing...[/bold yellow]"
                     )
             if progress_callback:
-                progress_callback(nom_tache_datafile1, advance=1)
+                progress_callback(datafile1_task_name, advance=1)
 
     if len(corr_to_upload) > 0:
         if status_callback:
@@ -443,9 +445,10 @@ def execute_datafiles_upload(
                 f"[green][✓] Datafile1 upload complete! {len(corr_to_upload)} uploads![/green]"
             )
     else:
-        status_callback(
-            "[green][✓] All Datafiles 1 were already uploaded (or there was no datafiles1)[/green]"
-        )
+        if status_callback:
+            status_callback(
+                "[green][✓] All Datafiles 1 were already uploaded (or there was no datafiles1)[/green]"
+            )
         logger.info(
             "[green][✓] All Datafiles 1 were already uploaded (or there was no datafiles1) [/green]"
         )
@@ -471,8 +474,8 @@ def execute_datafiles_upload(
         for img in mask_data.values():
             target = sci_obj_uri[img["Plant ID"]]
             date = img["Date"].replace("+", ".000+")
-            uri_trouve = datafile1_uri_map.get((target, date))
-            img["Prov_Used"] = uri_trouve
+            found_uri = datafile1_uri_map.get((target, date))
+            img["Prov_Used"] = found_uri
 
         existing_datafile2_keys = get_existing_datafiles(
             dat_api, provenance_datafile2, exp_uri
@@ -553,10 +556,10 @@ def execute_datafiles_upload(
                 )
             )
 
-        nom_tache_datafile2 = "[bold blue]Uploading datafiles 2...[/bold blue]"
+        datafile2_task_name = "[bold blue]Uploading datafiles 2...[/bold blue]"
 
         if progress_callback and len(mask_to_upload) > 0:
-            progress_callback(nom_tache_datafile2, total=len(mask_to_upload))
+            progress_callback(datafile2_task_name, total=len(mask_to_upload))
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             futures = {
@@ -579,7 +582,7 @@ def execute_datafiles_upload(
                         )
 
                 if progress_callback:
-                    progress_callback(nom_tache_datafile2, advance=1)
+                    progress_callback(datafile2_task_name, advance=1)
 
         if len(mask_to_upload) > 0:
             if status_callback:
@@ -590,9 +593,10 @@ def execute_datafiles_upload(
                     f"[green][✓] Datafile 2 upload complete! {len(mask_to_upload)} uploads![/green]"
                 )
         else:
-            status_callback(
-                "[green][✓] All Datafiles 2 were already uploaded (or there was no datafiles2)[/green]"
-            )
+            if status_callback:
+                status_callback(
+                    "[green][✓] All Datafiles 2 were already uploaded (or there was no datafiles2)[/green]"
+                )
             logger.info(
                 "[green][✓] All Datafiles 2 were already uploaded (or there was no datafiles2) [/green]"
             )

@@ -210,6 +210,21 @@ class TestAuth:
         )
 
     @patch("simple.auth.logout")
+    def test_connect_api_error_bytes_body(self, mock_logout):
+        """The real client stores the raw HTTP body as bytes."""
+        mock_client = MagicMock()
+        mock_client.connect_to_opensilex_ws.side_effect = (
+            self._client_wrapped_api_error(
+                b'{"result": {"message": "Invalid credentials provided"}}'
+            )
+        )
+
+        with pytest.raises(AuthenticationError) as error_info:
+            connect({"host": "https://fake.url"}, mock_client)
+
+        assert "Invalid credentials provided" in str(error_info.value)
+
+    @patch("simple.auth.logout")
     def test_connect_api_error_unparsable_body(self, mock_logout):
         """A non-JSON body keeps the historical 'impossible to decode' message."""
         mock_client = MagicMock()
@@ -281,6 +296,7 @@ class TestAuth:
     # TESTS POUR GET_LOGIN (INTERFACE)
     # ==========================================
 
+    @patch.dict("simple.auth.INSTANCES", DEFAULT_INSTANCES, clear=True)
     @patch("simple.auth.Prompt.ask")
     @patch("simple.auth.IntPrompt.ask")
     def test_get_login(self, mock_int_ask, mock_ask):
@@ -341,6 +357,7 @@ class TestInstanceConfiguration:
 
         assert load_instances(config) == DEFAULT_INSTANCES
 
+    @patch.dict("simple.auth.INSTANCES", DEFAULT_INSTANCES, clear=True)
     @patch("simple.auth.Prompt.ask")
     @patch("simple.auth.IntPrompt.ask")
     def test_get_login_accepts_a_custom_url(self, mock_int_ask, mock_ask):
