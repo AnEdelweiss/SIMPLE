@@ -62,7 +62,9 @@ class WorkerThread(QThread):
             result = self.task_func()
             self.finished_success.emit(result)
         except Exception as e:
-            # If anything crashes in the backend, catch it and tell the GUI
+            # Intentional broad catch at the worker-thread boundary: any
+            # backend failure must reach the GUI thread as a signal, otherwise
+            # the worker dies silently and the progress dialog never closes.
             self.finished_error.emit(e)
 
 # 2. The Custom Logging Handler

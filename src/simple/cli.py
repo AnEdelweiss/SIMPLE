@@ -1,7 +1,10 @@
 import logging
 import sys
+import zipfile
 
+import openpyxl.utils.exceptions
 import opensilexClientToolsPython as silex
+import urllib3
 from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.progress import (
@@ -54,6 +57,21 @@ from simple.ui import (
     menu,
     show_data_panel,
     show_data_table_dictionnaire,
+)
+
+# Errors an import step can realistically raise: API/network failures, file
+# and workbook read errors, bad data, and SIMPLE's own errors (the upload
+# helpers re-authenticate internally, so AuthenticationError lands here).
+IMPORT_STEP_ERRORS = (
+    silex.rest.ApiException,
+    urllib3.exceptions.HTTPError,
+    OSError,
+    KeyError,
+    ValueError,
+    TypeError,
+    zipfile.BadZipFile,
+    openpyxl.utils.exceptions.InvalidFileException,
+    SimpleBaseException,
 )
 
 
@@ -269,7 +287,7 @@ def ui_import_data(document_data, document_miappe, login, silex_API_Client):
                 avancement_upload=afficher_progres,
             )
 
-    except Exception as e:
+    except IMPORT_STEP_ERRORS as e:
         logger.error(
             "Import Failed : This is probably because one of the variable you declared in the MIAPPE 'mapping table' sheet was not found on your Phis instance \nPlease check the sheet for typos or check that the variable really exists. "
         )
@@ -457,7 +475,7 @@ def ui_import_datafiles(
                 "[bold green][✓] Succeeded in importing all datafiles ![/bold green]"
             )
 
-        except Exception as e:
+        except IMPORT_STEP_ERRORS as e:
             logger.exception(f"Datafile upload failed : {e}")
             raise SimpleBaseException(
                 "An error occurred during datafile upload. Please see the logs for more information."
@@ -651,6 +669,9 @@ def main():
             console.print(f"[bold yellow] \n Warning : {e} [/bold yellow]")
 
         except Exception as e:
+            # Intentional broad catch at the top of the interactive menu loop:
+            # one failed action must never kill the whole session. Anything not
+            # handled above is logged with a full traceback for debugging.
             logger.exception(
                 f"[bold red]Warning, an Unhandled Error was raised {e}[/bold red]"
             )

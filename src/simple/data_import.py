@@ -4,6 +4,7 @@ import os
 
 import opensilexClientToolsPython as silex
 import pandas as pd
+import urllib3
 
 from simple.__init__ import __version__
 from simple.auth import connexion
@@ -178,10 +179,21 @@ def create_germplasm(document_miappe, silex_API_Client):
                 else:
                     logger.info(f"Germplasm : {germ_name} found with URI : {germ_search[0].uri}")
                 germplasms_uri[germ_name] = germ_search[0].uri
-            except Exception as e :
-               logger.error(f"Creation of germplasm : '{germ_name}' Failed this may be caused by a duplicate uri, please check the MIAPPE 'germplasm' sheet, more infos in logs")
-               logger.debug(e)
-               raise DataImportError("Error during germplasm import")
+            except (
+                silex.rest.ApiException,
+                urllib3.exceptions.HTTPError,
+                OSError,
+                KeyError,
+                ValueError,
+                TypeError,
+                DataImportError,
+            ) as e:
+                # DataImportError is listed because the missing-species error
+                # raised a few lines above was historically caught and
+                # re-wrapped by this block; keep that message behaviour.
+                logger.error(f"Creation of germplasm : '{germ_name}' Failed this may be caused by a duplicate uri, please check the MIAPPE 'germplasm' sheet, more infos in logs")
+                logger.debug(e)
+                raise DataImportError("Error during germplasm import")
 
     logger.info("All germplasms have been found/created with sucess.")
     return germplasms_uri, species_uri

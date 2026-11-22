@@ -5,6 +5,7 @@ import os
 
 import opensilexClientToolsPython as silex
 import pandas as pd
+import urllib3
 from lxml import etree as ET
 
 from simple.__init__ import __version__
@@ -12,6 +13,18 @@ from simple.auth import connexion
 from simple.data_import import format_timestamps
 from simple.erreurs import DataImportError, SimpleBaseException
 from simple.systeme_logs import logger
+
+# A single datafile upload failure must not abort the whole batch: these are
+# the errors the upload call itself can realistically raise (API/network,
+# file access, bad row data or client-side DTO validation).
+DATAFILE_UPLOAD_ERRORS = (
+    silex.rest.ApiException,
+    urllib3.exceptions.HTTPError,
+    OSError,
+    KeyError,
+    ValueError,
+    TypeError,
+)
 
 
 def get_round_protocol_info(wd_experience, document_data):
@@ -48,7 +61,9 @@ def get_round_protocol_info(wd_experience, document_data):
                 with open(key, encoding="utf-16") as file:
                     xml_str = file.read().replace("\x00", "")
                 root = ET.fromstring(xml_str)
-            except Exception:
+            except (UnicodeError, ET.XMLSyntaxError):
+                # Round-protocol files are usually UTF-16 but some exports are
+                # plain UTF-8/ASCII; retry once with the default encoding.
                 with open(key) as file:
                     xml_str = file.read().replace("\x00", "")
                 root = ET.fromstring(xml_str)
@@ -398,7 +413,7 @@ def execute_datafiles_upload(
 
             try:
                 future.result()
-            except Exception as e:
+            except DATAFILE_UPLOAD_ERRORS as e:
                 logger.error(f"failed to upload image :{e} ")
                 if status_callback:
                     status_callback(
@@ -536,7 +551,7 @@ def execute_datafiles_upload(
                     timelimit = datetime.datetime.now() + datetime.timedelta(minutes=30)
                 try:
                     future.result()
-                except Exception as e:
+                except DATAFILE_UPLOAD_ERRORS as e:
                     logger.error(f"failed to upload image :{e} ")
                     if status_callback:
                         status_callback(
