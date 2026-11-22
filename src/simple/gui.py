@@ -21,14 +21,14 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from simple.auth import INSTANCES, check_connection_internet, connexion, is_connected
+from simple.auth import INSTANCES, check_connection_internet, connect, is_connected
 from simple.data_import import (
     create_factor,
     create_germplasm,
     create_sci_obj,
 )
 from simple.datafile_import import check_for_datafiles
-from simple.erreurs import (
+from simple.errors import (
     AuthenticationError,
     NetworkError,
 )
@@ -39,7 +39,7 @@ from simple.import_service import (
     run_tabular_import,
     upload_datafiles,
 )
-from simple.systeme_logs import logger
+from simple.logging_setup import logger
 
 
 # 1. The Signal Emitter (Safely crosses threads)
@@ -101,12 +101,12 @@ class SimpleGUI(QMainWindow):
         self.setMinimumSize(500, 500)
 
         # INITIALISATION DES VARIABLES et de l'api ~
-        self.silex_API_Client = silex.ApiClient(verbose=False)
+        self.api_client = silex.ApiClient(verbose=False)
         self.login_info = None
-        self.wd_experience = None
-        self.document_miappe = None
-        self.document_data = None
-        self.repertoire_photos = None
+        self.experiment_directory = None
+        self.miappe_path = None
+        self.data_path = None
+        self.photos_directory = None
 
         self.init_ui()
         self.gui_progress_signal.connect(self._safe_update_progress)
@@ -226,14 +226,14 @@ class SimpleGUI(QMainWindow):
             self.login_info = {"host": host, "identifier": identifier, "password": password}
 
         try:
-            connexion(self.login_info, self.silex_API_Client)
+            connect(self.login_info, self.api_client)
             self.status_label.setText(f"Logged in as {identifier} on {INSTANCES[host]}")
             QMessageBox.information(self, "Success", "Connected successfully.")
         except AuthenticationError as e:
             QMessageBox.critical(self, "Auth Error", str(e))
 
     def action_find_experiment(self):
-        if not is_connected(self.silex_API_Client):
+        if not is_connected(self.api_client):
             QMessageBox.warning(self, "Error", "Please log in first.")
             return
 
@@ -241,7 +241,7 @@ class SimpleGUI(QMainWindow):
         if ok and name_exp:
             self.with_progress(
                 "Searching...",
-                lambda: api_find_experiment_by_name(self.silex_API_Client, name_exp),
+                lambda: api_find_experiment_by_name(self.api_client, name_exp),
                 self._display_experiment,
             )
 
@@ -254,25 +254,25 @@ class SimpleGUI(QMainWindow):
         QMessageBox.information(self, "Experiment Info", details)
 
     def action_open_import_menu(self):
-        if not is_connected(self.silex_API_Client):
+        if not is_connected(self.api_client):
             QMessageBox.warning(self, "Error", "Please log in first.")
             return
 
-        if not self.wd_experience:
-            self.wd_experience = QFileDialog.getExistingDirectory(
+        if not self.experiment_directory:
+            self.experiment_directory = QFileDialog.getExistingDirectory(
                 self, "Select Working Directory"
             )
-            if not self.wd_experience:
+            if not self.experiment_directory:
                 return
 
-            self.document_miappe, _ = QFileDialog.getOpenFileName(
+            self.miappe_path, _ = QFileDialog.getOpenFileName(
                 self,
                 "Select MIAPPE file",
-                self.wd_experience,
+                self.experiment_directory,
                 "Excel Files (*.xlsx *.xls)",
             )
-            self.document_data, _ = QFileDialog.getOpenFileName(
-                self, "Select Data file", self.wd_experience, "Excel Files (*.xlsx xls)"
+            self.data_path, _ = QFileDialog.getOpenFileName(
+                self, "Select Data file", self.experiment_directory, "Excel Files (*.xlsx xls)"
             )
 
         self.import_dialog = QDialog(self)
@@ -297,10 +297,10 @@ class SimpleGUI(QMainWindow):
         self.import_dialog.exec()
 
     def action_reset(self):
-        self.wd_experience = None
-        self.document_miappe = None
-        self.document_data = None
-        self.repertoire_photos = None
+        self.experiment_directory = None
+        self.miappe_path = None
+        self.data_path = None
+        self.photos_directory = None
         QMessageBox.information(
             self, "Reset", "Working directory and selected files have been reset."
         )
@@ -355,14 +355,14 @@ class SimpleGUI(QMainWindow):
     def do_create_experiment(self):
         def task():
             return create_experiment(
-                self.document_miappe,
-                self.silex_API_Client,
+                self.miappe_path,
+                self.api_client,
                 status_callback=self._status_callback,
             )
 
         def finish(results):
             # affichage final
-            msg = "\n".join([f"experiment {nom} created or found with uri: {uri}" for nom, uri in results.items()])
+            msg = "\n".join([f"experiment {name} created or found with uri: {uri}" for name, uri in results.items()])
             QMessageBox.information(self, "Experiment creater or found", msg)
 
         self.with_progress(
@@ -374,7 +374,7 @@ class SimpleGUI(QMainWindow):
 
     def do_import_germplasm(self):
         def task():
-            return create_germplasm(self.document_miappe, self.silex_API_Client)
+            return create_germplasm(self.miappe_path, self.api_client)
 
         self.with_progress(
             "Creating/fetching germplasms...",
@@ -385,7 +385,7 @@ class SimpleGUI(QMainWindow):
 
     def do_import_factor(self):
         def task():
-            return create_factor(self.document_miappe, self.silex_API_Client)
+            return create_factor(self.miappe_path, self.api_client)
 
         self.with_progress(
             "Creating/fetching factors...",
@@ -397,9 +397,9 @@ class SimpleGUI(QMainWindow):
     def do_import_sci_obj(self):
         def task():
             return create_sci_obj(
-                self.document_data,
-                self.document_miappe,
-                self.silex_API_Client,
+                self.data_path,
+                self.miappe_path,
+                self.api_client,
                 status_callback=self._status_callback,
             )
 
@@ -417,12 +417,12 @@ class SimpleGUI(QMainWindow):
         )
 
     def do_import_datafiles(self):
-        self.repertoire_photos = QFileDialog.getExistingDirectory(self, "Select Photo Directory", self.wd_experience)
-        if not self.repertoire_photos:
+        self.photos_directory = QFileDialog.getExistingDirectory(self, "Select Photo Directory", self.experiment_directory)
+        if not self.photos_directory:
             return
 
         # 1. UI interaction must happen in the main thread before starting the background task
-        datafile_check = check_for_datafiles(self.document_data, self.repertoire_photos)
+        datafile_check = check_for_datafiles(self.data_path, self.photos_directory)
         _, missing_datafile1, _, missing_datafile2, _, _ = datafile_check
 
         if missing_datafile1 or missing_datafile2:
@@ -443,24 +443,24 @@ class SimpleGUI(QMainWindow):
                     logger.warning("PlantMask and Camera Position were not found")
                 return True
 
-            def gestion_barre(nom_tache, total=None, avance=0):
+            def update_progress_bar(task_name, total=None, advance=0):
                 safe_total = total if total is not None else 0
-                self.gui_progress_signal.emit(nom_tache, avance, safe_total)
+                self.gui_progress_signal.emit(task_name, advance, safe_total)
 
             run_datafiles_import(
-                self.document_miappe,
-                self.document_data,
-                self.wd_experience,
+                self.miappe_path,
+                self.data_path,
+                self.experiment_directory,
                 self.login_info,
-                self.silex_API_Client,
-                self.repertoire_photos,
+                self.api_client,
+                self.photos_directory,
                 confirm_create_default_provenances=lambda missing: True,
                 confirm_protocol=confirm_protocol,
                 confirm_discrepancies=lambda missing1, missing2: True,
                 confirm_upload=lambda: True,
                 datafile_check=datafile_check,
                 status_callback=lambda mess: logger.info(mess),
-                progress_callback=gestion_barre,
+                progress_callback=update_progress_bar,
             )
 
         # 3. Use a lambda for the missing success_callback
@@ -477,26 +477,26 @@ class SimpleGUI(QMainWindow):
             def confirm_data_mapping(morpho_info):
                 # Calculate the total upfront (number of variables * rows)
                 total_operations["value"] = len(morpho_info) * len(
-                    pd.read_excel(self.document_data)
+                    pd.read_excel(self.data_path)
                 )
                 return True
 
-            def afficher_progres(nom_variable, nb_lignes):
+            def show_progress(variable_name, line_count):
                 # Pass the calculated total so the UI knows how to scale
                 self.gui_progress_signal.emit(
-                    f"Adding to {nom_variable}",
-                    nb_lignes,
+                    f"Adding to {variable_name}",
+                    line_count,
                     total_operations["value"],
                 )
 
             run_tabular_import(
-                self.document_data,
-                self.document_miappe,
+                self.data_path,
+                self.miappe_path,
                 self.login_info,
-                self.silex_API_Client,
+                self.api_client,
                 confirm_data_mapping=confirm_data_mapping,
                 confirm_create_default_provenances=lambda missing: True,
-                progress_callback=afficher_progres,
+                progress_callback=show_progress,
             )
 
         # 3. Use a lambda for the missing success_callback
@@ -508,12 +508,12 @@ class SimpleGUI(QMainWindow):
 
     def do_run_all(self):
         # 1. Handle all UI Pop-ups in the main thread first
-        self.repertoire_photos = QFileDialog.getExistingDirectory(self, "Select Photo Directory", self.wd_experience)
-        if not self.repertoire_photos:
+        self.photos_directory = QFileDialog.getExistingDirectory(self, "Select Photo Directory", self.experiment_directory)
+        if not self.photos_directory:
             return
 
         # Check for missing datafiles before locking up the UI
-        datafile_check = check_for_datafiles(self.document_data, self.repertoire_photos)
+        datafile_check = check_for_datafiles(self.data_path, self.photos_directory)
         _, missing_datafile1, _, missing_datafile2, _, _ = datafile_check
 
         if missing_datafile1 or missing_datafile2:
@@ -531,35 +531,35 @@ class SimpleGUI(QMainWindow):
         def master_task():
             # --- 1. Experiment ---
             self.gui_progress_signal.emit("Creating experiment", 0, 0)
-            create_experiment(self.document_miappe, self.silex_API_Client, status_callback=self._status_callback)
+            create_experiment(self.miappe_path, self.api_client, status_callback=self._status_callback)
 
             # --- 2. Germplasm ---
             self.gui_progress_signal.emit("Importing germplasms", 0, 0)
-            create_germplasm(self.document_miappe, self.silex_API_Client)
+            create_germplasm(self.miappe_path, self.api_client)
 
             # --- 3. Factors ---
             self.gui_progress_signal.emit("Importing factors", 0, 0)
-            create_factor(self.document_miappe, self.silex_API_Client)
+            create_factor(self.miappe_path, self.api_client)
 
             # --- 4. Scientific Objects ---
             sci_obj_uri, created_sci_obj = create_sci_obj(
-                self.document_data, self.document_miappe, self.silex_API_Client,
+                self.data_path, self.miappe_path, self.api_client,
                 status_callback=self._status_callback
             )
 
             # --- 5. Datafiles ---
             self.gui_progress_signal.emit("Checking provenances", 0, 0)
 
-            def gestion_barre_df(nom_tache, total=None, avance=0):
+            def update_datafile_progress_bar(task_name, total=None, advance=0):
                 safe_total = total if total is not None else 0
-                self.gui_progress_signal.emit(nom_tache, avance, safe_total)
+                self.gui_progress_signal.emit(task_name, advance, safe_total)
 
             plan = plan_datafiles_import(
-                self.document_miappe,
-                self.document_data,
-                self.wd_experience,
-                self.silex_API_Client,
-                self.repertoire_photos,
+                self.miappe_path,
+                self.data_path,
+                self.experiment_directory,
+                self.api_client,
+                self.photos_directory,
                 confirm_create_default_provenances=lambda missing: True,
                 confirm_protocol=lambda protocol_found: True,
                 confirm_discrepancies=lambda missing1, missing2: True,
@@ -569,12 +569,12 @@ class SimpleGUI(QMainWindow):
             )
             upload_datafiles(
                 plan,
-                self.document_miappe,
-                self.document_data,
+                self.miappe_path,
+                self.data_path,
                 self.login_info,
-                self.silex_API_Client,
+                self.api_client,
                 status_callback=self._status_callback,
-                progress_callback=gestion_barre_df,
+                progress_callback=update_datafile_progress_bar,
             )
 
             # --- 6. Tabular Data ---
@@ -582,25 +582,25 @@ class SimpleGUI(QMainWindow):
 
             def confirm_data_mapping(morpho_info):
                 total_operations["value"] = len(morpho_info) * len(
-                    pd.read_excel(self.document_data)
+                    pd.read_excel(self.data_path)
                 )
                 return True
 
-            def afficher_progres(nom_variable, nb_lignes):
+            def show_progress(variable_name, line_count):
                 self.gui_progress_signal.emit(
-                    f"Adding to {nom_variable}",
-                    nb_lignes,
+                    f"Adding to {variable_name}",
+                    line_count,
                     total_operations["value"],
                 )
 
             run_tabular_import(
-                self.document_data,
-                self.document_miappe,
+                self.data_path,
+                self.miappe_path,
                 self.login_info,
-                self.silex_API_Client,
+                self.api_client,
                 confirm_data_mapping=confirm_data_mapping,
                 confirm_create_default_provenances=lambda missing: True,
-                progress_callback=afficher_progres,
+                progress_callback=show_progress,
                 provenances=(plan.prov_dict, plan.datafile_provenance),
                 sci_obj=(sci_obj_uri, created_sci_obj),
             )

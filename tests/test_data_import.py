@@ -13,7 +13,7 @@ from simple.data_import import (
 )
 
 # Assurez-vous d'importer vos propres modules correctement selon l'arborescence de votre projet
-from simple.erreurs import DataImportError
+from simple.errors import DataImportError
 
 
 class TestDataImport:
@@ -190,7 +190,7 @@ class TestDataImport:
     # TESTS POUR CREATE_DATA (DONNÉES TABULAIRES)
     # ==========================================
 
-    @patch("simple.data_import.connexion")  # On simule la connexion de sécurité
+    @patch("simple.data_import.connect")  # On simule la connect de sécurité
     @patch("simple.data_import.silex.DataApi")
     @patch("simple.data_import.silex.VariablesApi")
     @patch("simple.data_import.silex.ExperimentsApi")
@@ -203,7 +203,7 @@ class TestDataImport:
         MockExpApi,
         MockVarApi,
         MockDataApi,
-        mock_connexion,
+        mock_connect,
     ):
         """Teste l'envoi de nouvelles données tabulaires à l'API"""
         # 1. Arrange
@@ -263,7 +263,7 @@ class TestDataImport:
             prov_dict,
             datafile_prov,
             sci_obj_uri,
-            avancement_upload=mock_avancement,
+            upload_progress=mock_avancement,
         )
 
         # 3. Assert
@@ -279,7 +279,7 @@ class TestDataImport:
         assert mock_avancement.called is True
         mock_avancement.assert_called_with("var_taille", 2)
 
-    @patch("simple.data_import.connexion")
+    @patch("simple.data_import.connect")
     @patch("simple.data_import.silex.DataApi")
     @patch("simple.data_import.silex.VariablesApi")
     @patch("simple.data_import.silex.ExperimentsApi")
@@ -292,7 +292,7 @@ class TestDataImport:
         MockExpApi,
         MockVarApi,
         MockDataApi,
-        mock_connexion,
+        mock_connect,
     ):
         """Teste que les données existantes sont ignorées (pas de doublons)"""
         # Même arrangement que précédemment...
@@ -347,7 +347,7 @@ class TestDataImport:
             {"Prov_Test": "http://fake-uri.com/prov/1"},  # CORRECTION ICI
             {"dummy_data.xlsx": {"prov_morpho_parameters": "Prov_Test"}},  # ET ICI
             sci_obj_uri,
-            avancement_upload=mock_avancement,
+            upload_progress=mock_avancement,
         )
 
         # Assert : Puisque la donnée existait, add_list_data ne doit pas être appelé !
@@ -402,9 +402,9 @@ class TestDataImport:
 
         df_factors = pd.DataFrame({"name": ["Factor1"], "description": ["Desc 1"]})
 
-        df_precedent = pd.DataFrame(columns=["studyId", "obsUnitType"])
+        previous_df = pd.DataFrame(columns=["studyId", "obsUnitType"])
 
-        mock_read_excel.side_effect = [df_miappe, df_factors, df_data, df_precedent]
+        mock_read_excel.side_effect = [df_miappe, df_factors, df_data, previous_df]
         mock_get_name_space.return_value = ("fake_namespace:", "http://fake-base.com/")
 
         # Mocks API
@@ -545,7 +545,7 @@ class TestDataImport:
     def test_create_sci_obj_missing_experiment_raises_error(
         self, mock_read_excel, MockExpApi
     ):
-        """Teste qu'une erreur est levée si le nom de l'expérience n'existe pas"""
+        """Teste qu'une erreur est levée si le name de l'expérience n'existe pas"""
         df_miappe = pd.DataFrame(
             {"name": ["Exp_Inconnue"], "scientific_object_type": ["vocabulary:Plant"]}
         )

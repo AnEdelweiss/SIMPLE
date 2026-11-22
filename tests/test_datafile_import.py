@@ -11,7 +11,7 @@ from simple.datafile_import import (
     execute_datafiles_upload,
     get_round_protocol_info,
 )
-from simple.erreurs import DataImportError
+from simple.errors import DataImportError
 
 
 def _miappe(tmp_path):
@@ -57,8 +57,8 @@ def _config(datafile2=False):
 
 def _upload_kwargs(tmp_path, datafile2=False):
     return {
-        "document_miappe": _miappe(tmp_path),
-        "document_data": str(tmp_path / "data.xlsx"),
+        "miappe_path": _miappe(tmp_path),
+        "data_path": str(tmp_path / "data.xlsx"),
         "df_data": _df_data(datafile2),
         "dict_datafile1": {"img_a.png": str(tmp_path / "img_a.png")},
         "dict_datafile2": ({"mask_a.png": str(tmp_path / "mask_a.png")} if datafile2 else {}),
@@ -71,17 +71,17 @@ def _upload_kwargs(tmp_path, datafile2=False):
         "cam_pos": {1: {"height": "2", "Offset": "5"}},
         "plant_mask": {1: {"PlantMask": "mask"}},
         "login": "login",
-        "silex_API_Client": "client",
+        "api_client": "client",
     }
 
 
 class TestExecuteDatafilesUpload:
-    @patch("simple.datafile_import.connexion")
+    @patch("simple.datafile_import.connect")
     @patch("simple.datafile_import.get_existing_datafiles")
     @patch("simple.datafile_import.silex.DataApi")
     @patch("simple.datafile_import.silex.ExperimentsApi")
     def test_uploads_missing_datafiles1(
-        self, MockExpApi, MockDataApi, mock_existing, mock_connexion, tmp_path
+        self, MockExpApi, MockDataApi, mock_existing, mock_connect, tmp_path
     ):
         exp = MagicMock(uri="exp:1")
         MockExpApi.return_value.search_experiments.return_value = {"result": [exp]}
@@ -107,12 +107,12 @@ class TestExecuteDatafilesUpload:
             "[green][✓] All Datafiles 1 were already uploaded (or there was no datafiles1)[/green]"
         )
 
-    @patch("simple.datafile_import.connexion")
+    @patch("simple.datafile_import.connect")
     @patch("simple.datafile_import.get_existing_datafiles")
     @patch("simple.datafile_import.silex.DataApi")
     @patch("simple.datafile_import.silex.ExperimentsApi")
     def test_uploads_new_datafile1_and_datafile2(
-        self, MockExpApi, MockDataApi, mock_existing, mock_connexion, tmp_path
+        self, MockExpApi, MockDataApi, mock_existing, mock_connect, tmp_path
     ):
         exp = MagicMock(uri="exp:1")
         MockExpApi.return_value.search_experiments.return_value = {"result": [exp]}
@@ -144,12 +144,12 @@ class TestExecuteDatafilesUpload:
             for call in status.call_args_list
         )
 
-    @patch("simple.datafile_import.connexion")
+    @patch("simple.datafile_import.connect")
     @patch("simple.datafile_import.get_existing_datafiles")
     @patch("simple.datafile_import.silex.DataApi")
     @patch("simple.datafile_import.silex.ExperimentsApi")
     def test_failed_upload_is_reported_and_batch_continues(
-        self, MockExpApi, MockDataApi, mock_existing, mock_connexion, tmp_path
+        self, MockExpApi, MockDataApi, mock_existing, mock_connect, tmp_path
     ):
         exp = MagicMock(uri="exp:1")
         MockExpApi.return_value.search_experiments.return_value = {"result": [exp]}
@@ -172,7 +172,7 @@ class TestExecuteDatafilesUpload:
             for call in status.call_args_list
         )
         progress.assert_any_call(
-            "[bold blue]Uploading datafiles 1...[/bold blue]", avance=1
+            "[bold blue]Uploading datafiles 1...[/bold blue]", advance=1
         )
 
 

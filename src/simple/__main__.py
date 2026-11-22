@@ -22,7 +22,7 @@ def main():
 
     if args.dry_run:
         from simple.dry_run import dry_run
-        from simple.erreurs import SimpleBaseException
+        from simple.errors import SimpleBaseException
 
         try:
             lines, ok = dry_run(args.dry_run)

@@ -3,7 +3,7 @@ from unittest.mock import ANY, patch
 import pytest
 
 from simple.cli import main
-from simple.erreurs import NetworkError, SimpleBaseException
+from simple.errors import NetworkError, SimpleBaseException
 
 
 class TestCLI:
@@ -15,20 +15,20 @@ class TestCLI:
         l'application affiche un message propre et s'arrête sans crasher.
         """
         # On simule une coupure internet
-        mock_check_net.side_effect = NetworkError("Pas de connexion internet.")
+        mock_check_net.side_effect = NetworkError("Pas de connect internet.")
 
         # On lance le main (qui ne devrait pas lever d'erreur technique)
         main()
 
         # On vérifie que le message rouge a bien été affiché
-        mock_print.assert_called_with("[bold red]Pas de connexion internet.[/bold red]")
+        mock_print.assert_called_with("[bold red]Pas de connect internet.[/bold red]")
 
-    @patch("simple.cli.connexion")
+    @patch("simple.cli.connect")
     @patch("simple.cli.Prompt.ask")
     @patch("simple.cli.IntPrompt.ask")
     @patch("simple.cli.check_connection_internet")
     def test_main_exit_option_9(
-        self, mock_check_net, mock_int_prompt, mock_prompt, mock_connexion
+        self, mock_check_net, mock_int_prompt, mock_prompt, mock_connect
     ):
         """
         Vérifie que taper '9' dans le menu principal quitte bien l'application.
@@ -46,7 +46,7 @@ class TestCLI:
     @patch("simple.cli.console.print")
     @patch("simple.cli.ui_find_experiment")
     @patch("simple.cli.is_connected")
-    @patch("simple.cli.connexion")
+    @patch("simple.cli.connect")
     @patch("simple.cli.Prompt.ask")
     @patch("simple.cli.IntPrompt.ask")
     @patch("simple.cli.check_connection_internet")
@@ -55,7 +55,7 @@ class TestCLI:
         mock_check_net,
         mock_int_prompt,
         mock_prompt,
-        mock_connexion,
+        mock_connect,
         mock_is_connected,
         mock_ui_find,
         mock_print,
@@ -83,9 +83,9 @@ class TestCLI:
         )
 
     @patch("simple.cli.ui_create_experiment")
-    @patch("simple.cli.choix_repertoire_travail")
+    @patch("simple.cli.choose_working_directory")
     @patch("simple.cli.is_connected")
-    @patch("simple.cli.connexion")
+    @patch("simple.cli.connect")
     @patch("simple.cli.Prompt.ask")
     @patch("simple.cli.IntPrompt.ask")
     @patch("simple.cli.check_connection_internet")
@@ -94,9 +94,9 @@ class TestCLI:
         mock_check_net,
         mock_int_prompt,
         mock_prompt,
-        mock_connexion,
+        mock_connect,
         mock_is_connected,
-        mock_choix_rep,
+        mock_choose_directory,
         mock_ui_create,
     ):
         """
@@ -105,7 +105,7 @@ class TestCLI:
         mock_is_connected.return_value = True
 
         # On simule un faux retour pour le choix du répertoire
-        mock_choix_rep.return_value = (
+        mock_choose_directory.return_value = (
             "wd_path",
             "dossier_test",
             "miappe.xlsx",

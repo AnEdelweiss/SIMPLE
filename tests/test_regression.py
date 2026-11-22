@@ -13,7 +13,7 @@ import pytest
 
 from simple.data_import import create_data, create_sci_obj
 from simple.datafile_import import parse_excel_for_metadata
-from simple.erreurs import SimpleBaseException
+from simple.errors import SimpleBaseException
 
 
 # --------------------------------------------------------------------------- #
@@ -113,12 +113,12 @@ def test_create_sci_obj_first_run_and_empty_germplasm(
 # --------------------------------------------------------------------------- #
 # 2. create_data must accept real (string) timestamps, with and without offset
 # --------------------------------------------------------------------------- #
-@patch("simple.data_import.connexion")
+@patch("simple.data_import.connect")
 @patch("simple.data_import.silex.DataApi")
 @patch("simple.data_import.silex.VariablesApi")
 @patch("simple.data_import.silex.ExperimentsApi")
 def test_create_data_parses_real_timestamps(
-    MockExpApi, MockVarApi, MockDataApi, mock_connexion, tmp_path
+    MockExpApi, MockVarApi, MockDataApi, mock_connect, tmp_path
 ):
     MockExpApi.return_value = _stub_experiments()
 

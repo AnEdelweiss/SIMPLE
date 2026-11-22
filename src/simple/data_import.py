@@ -7,9 +7,9 @@ import pandas as pd
 import urllib3
 
 from simple.__init__ import __version__
-from simple.auth import connexion
-from simple.erreurs import DataImportError
-from simple.systeme_logs import logger
+from simple.auth import connect
+from simple.errors import DataImportError
+from simple.logging_setup import logger
 
 
 def format_timestamps(series, timezone="UTC"):
@@ -27,12 +27,12 @@ def format_timestamps(series, timezone="UTC"):
     )
 
 
-def get_name_space(silex_API_Client):
-    ontology_api = silex.OntologyApi(silex_API_Client)
+def get_name_space(api_client):
+    ontology_api = silex.OntologyApi(api_client)
     instance_uri = ontology_api.get_base_uri()["result"]
     name_space_dict = ast.literal_eval(ontology_api.get_name_space()["result"])
     name_space = str(
-        [cle for cle, valeur in name_space_dict.items() if valeur == instance_uri]
+        [key for key, value in name_space_dict.items() if value == instance_uri]
     )
     name_space_clean = (
         name_space.replace("'", "").replace("[", "").replace("]", "") + ":"
@@ -43,9 +43,9 @@ def get_name_space(silex_API_Client):
     return name_space_clean, instance_uri
 
 
-def create_factor(document_miappe, silex_API_Client):
+def create_factor(miappe_path, api_client):
     # getting experiment name
-    dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
+    dataframe = pd.read_excel(miappe_path, sheet_name="experiment", header=1)
     dataframe.drop(
         dataframe.columns[dataframe.columns.str.contains("unnamed", case=False)],
         axis=1,
@@ -53,22 +53,22 @@ def create_factor(document_miappe, silex_API_Client):
     )
     name_exp = dataframe["name"].dropna().iloc[0]
     # getting factors
-    dataframe = pd.read_excel(document_miappe, sheet_name="factors", header=1)
+    dataframe = pd.read_excel(miappe_path, sheet_name="factors", header=1)
     dataframe.drop(
         dataframe.columns[dataframe.columns.str.contains("unnamed", case=False)],
         axis=1,
         inplace=True,
     )
-    factor_api = silex.FactorsApi(silex_API_Client)
+    factor_api = silex.FactorsApi(api_client)
     factors_uri = {}
     factors_levels_uri = {}
 
-    exp_api = silex.ExperimentsApi(silex_API_Client)
+    exp_api = silex.ExperimentsApi(api_client)
     exp_search = exp_api.search_experiments(name=name_exp)["result"]
     name_exp_uri = {name_exp: exp_search[0].uri}
-    experience_name, experience_uri = next(iter(name_exp_uri.items()))
-    logger.info(f"You are working on experiment : {experience_name} URI :{experience_uri} ")
-    dico_factor = {}
+    experiment_name, experiment_uri = next(iter(name_exp_uri.items()))
+    logger.info(f"You are working on experiment : {experiment_name} URI :{experiment_uri} ")
+    factors_data = {}
 
     for row in list(dataframe.to_dict("records")):
         factor = str(row["name"]).strip() if pd.notna(row["name"]) else ""
@@ -80,15 +80,15 @@ def create_factor(document_miappe, silex_API_Client):
             row["factor_level_desc"] if pd.notna(row["factor_level_desc"]) else None
         )
 
-        if factor not in dico_factor:
-            dico_factor[factor] = {"description": description_factor, "levels": []}
+        if factor not in factors_data:
+            factors_data[factor] = {"description": description_factor, "levels": []}
 
         if factor_level:
-            dico_factor[factor]["levels"].append(
+            factors_data[factor]["levels"].append(
                 {"name": factor_level, "description": description_level}
             )
 
-    for factor_name, factor_data in dico_factor.items():
+    for factor_name, factor_data in factors_data.items():
         factor_search = factor_api.search_factors(
             name=factor_name, experiment=name_exp_uri[name_exp]
         )["result"]
@@ -126,15 +126,15 @@ def create_factor(document_miappe, silex_API_Client):
     return factors_levels_uri, factors_uri
 
 
-def create_germplasm(document_miappe, silex_API_Client):
+def create_germplasm(miappe_path, api_client):
 
-    dataframe = pd.read_excel(document_miappe, sheet_name="germplasm", header=1)
+    dataframe = pd.read_excel(miappe_path, sheet_name="germplasm", header=1)
     dataframe.drop(
         dataframe.columns[dataframe.columns.str.contains("unnamed", case=False)],
         axis=1,
         inplace=True,
     )
-    germplasm_api = silex.GermplasmApi(silex_API_Client)
+    germplasm_api = silex.GermplasmApi(api_client)
     species_uri = {}
     germplasms_uri = {}
     # on evite les problèmes de lignes vides ou fantome jsp frr
@@ -200,10 +200,10 @@ def create_germplasm(document_miappe, silex_API_Client):
 
 
 def create_sci_obj(
-    document_data, document_miappe, silex_API_Client, status_callback=None
+    data_path, miappe_path, api_client, status_callback=None
 ):
     # Récupération du excel page experiment
-    dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
+    dataframe = pd.read_excel(miappe_path, sheet_name="experiment", header=1)
     dataframe.drop(
         dataframe.columns[dataframe.columns.str.contains("unnamed", case=False)],
         axis=1,
@@ -224,7 +224,7 @@ def create_sci_obj(
     bio_mat_raw = row.get("scientific_object_type")
     bio_mat_type = [x.strip() for x in str(bio_mat_raw).split(",")] if bio_mat_raw else []
 
-    df_factors = pd.read_excel(document_miappe, sheet_name="factors", header=1)
+    df_factors = pd.read_excel(miappe_path, sheet_name="factors", header=1)
     df_factors.drop(
         df_factors.columns[df_factors.columns.str.contains("unnamed", case=False)],
         axis=1,
@@ -234,28 +234,28 @@ def create_sci_obj(
     factors = df_factors["name"].dropna().astype(str).str.strip().unique().tolist()
 
     # Ici on récupère les données tabulaires pour créer les objets scientifiques.
-    df_data = pd.read_excel(document_data)
+    df_data = pd.read_excel(data_path)
     # on garde seulement les Plant ID uniques
     df_sci_obj = df_data.drop_duplicates(subset=["Plant ID"])
-    relations_generales = []
+    general_relations = []
 
     # on cherche si l'expérience éxiste pour en extraire l'uri
-    exp_search = silex.ExperimentsApi(silex_API_Client).search_experiments(
+    exp_search = silex.ExperimentsApi(api_client).search_experiments(
         name=name_exp
     )
-    resultats = exp_search.get("result", [])
-    if not resultats:
+    results = exp_search.get("result", [])
+    if not results:
         logger.error(
             f"Experiment {name_exp} was not found, check if the name is correct or create the experiment before scientific objects"
         )
         raise DataImportError(
             f"[bold red]This experiment doesn't exist, please check if the name is correct : {name_exp}[/bold red]"
         )
-    name_exp_uri = {name_exp: resultats[0].uri}
-    experience_name, experience_uri = next(iter(name_exp_uri.items()))
-    logger.info(f"You are working on experiment : {experience_name} URI :{experience_uri} ")
-    # Récupérer un dictionnaire de facteurs levels pour cette experience
-    api_response = silex.ExperimentsApi(silex_API_Client).get_available_factors(
+    name_exp_uri = {name_exp: results[0].uri}
+    experiment_name, experiment_uri = next(iter(name_exp_uri.items()))
+    logger.info(f"You are working on experiment : {experiment_name} URI :{experiment_uri} ")
+    # Récupérer un dictionary de facteurs levels pour cette experience
+    api_response = silex.ExperimentsApi(api_client).get_available_factors(
         exp_search["result"][0].uri
     )
     if api_response["result"]:
@@ -264,14 +264,14 @@ def create_sci_obj(
             for factor_level in resultat.levels:
                 factors_levels_uri[factor_level.name] = factor_level.uri
     else:
-        factors_levels_uri, _ = create_factor(document_miappe, silex_API_Client)
+        factors_levels_uri, _ = create_factor(miappe_path, api_client)
 
     # création des relations
     if start_exp:
         relation_temp = silex.RDFObjectRelationDTO(
             _property="vocabulary:hasCreationDate", value=start_exp
         )
-        relations_generales.append(relation_temp)
+        general_relations.append(relation_temp)
     else:
         logger.warning("Start Date Missing")
 
@@ -279,7 +279,7 @@ def create_sci_obj(
         relation_temp = silex.RDFObjectRelationDTO(
             _property="vocabulary:hasDestructionDate", value=end_exp
         )
-        relations_generales.append(relation_temp)
+        general_relations.append(relation_temp)
     else:
         logger.warning("End Date Missing")
 
@@ -290,7 +290,7 @@ def create_sci_obj(
         raise DataImportError("Scientific Object RDF Type Missing")
     else:
         for biomat in bio_mat_type:
-            ontology_api = silex.OntologyApi(silex_API_Client)
+            ontology_api = silex.OntologyApi(api_client)
             ontology_search = ontology_api.search_sub_classes_of(
                 name=biomat, parent_type="vocabulary:ScientificObject"
             )["result"]
@@ -300,12 +300,12 @@ def create_sci_obj(
                 logger.error(f"Scientific Object RDF Type Unknown: {biomat}")
                 raise DataImportError(f"Scientific Object RDF Type Unknown: {biomat}")
 
-    sci_obj_api = silex.ScientificObjectsApi(silex_API_Client)
+    sci_obj_api = silex.ScientificObjectsApi(api_client)
     sci_obj_uri = {}
     dtos_to_export = []
-    dico_germplasm = {}
+    germplasm_cache = {}
     created_sci_obj = 0
-    base_uri_namespace, base_uri = get_name_space(silex_API_Client)
+    base_uri_namespace, base_uri = get_name_space(api_client)
     # JE RECUPERE TOUS LES OBJETS SCIENTIFIQUES LIES A L'EXPERIENCE
     # JE LES METS DANS UN DICTIONNAIRE ET JE VERIFIE CHAQUE Plant ID AVEC LE NOM DANS LE DICTIONNAIRE
     all_existing_objs = sci_obj_api.search_scientific_objects(
@@ -318,23 +318,23 @@ def create_sci_obj(
         if plant_id in sci_obj_cache:
             sci_obj_uri.update({plant_id: sci_obj_cache[plant_id]})
         else:
-            relations_sci_obj = []
+            sci_obj_relations = []
             all_factors = []
             germplasm_value = None
             # ici on à la logique de vérification des germplasmes dans les objets scientifiques, on vérifie si il est dans la liste des germplasmes connus, et si oui on prends son uri
             germ_name = row.get("Germplasm")
             if pd.notna(germ_name) and germ_name:
-                if germ_name not in dico_germplasm:
-                    germ_search = silex.GermplasmApi(silex_API_Client).search_germplasm(
+                if germ_name not in germplasm_cache:
+                    germ_search = silex.GermplasmApi(api_client).search_germplasm(
                         name=f"^{germ_name}$"
                     )["result"]
                     if germ_search:
-                        dico_germplasm[germ_name] = germ_search[0].uri
-                        germplasm_value = dico_germplasm[germ_name]
+                        germplasm_cache[germ_name] = germ_search[0].uri
+                        germplasm_value = germplasm_cache[germ_name]
                         relation_temp = silex.RDFObjectRelationDTO(
                             _property="vocabulary:hasGermplasm", value=germplasm_value
                         )
-                        relations_sci_obj.append(relation_temp)
+                        sci_obj_relations.append(relation_temp)
                         logger.info(f"Germplasm {germ_name} found")
                     else:
                         logger.error(f"Germplasm {germ_name} cannot be found.")
@@ -342,11 +342,11 @@ def create_sci_obj(
                             f"[bold red] Germplasm [cyan]{germ_name}[/cyan] cannot be found, please check for typos or if they exist.[/bold red]"
                         )
                 else:
-                    germplasm_value = dico_germplasm[germ_name]
+                    germplasm_value = germplasm_cache[germ_name]
                     relation_temp = silex.RDFObjectRelationDTO(
                         _property="vocabulary:hasGermplasm", value=germplasm_value
                     )
-                    relations_sci_obj.append(relation_temp)
+                    sci_obj_relations.append(relation_temp)
             # on récupère les uri des niveaux de facteur
             for one_factor in factors:
                 if one_factor in row and pd.notna(row[one_factor]):
@@ -357,7 +357,7 @@ def create_sci_obj(
                                 "The factor level was not found. Starting factor import from the MIAPPE document"
                             )
                             factors_levels_uri, _ = create_factor(
-                                document_miappe, silex_API_Client
+                                miappe_path, api_client
                             )
 
                             if factor_level not in factors_levels_uri:
@@ -374,7 +374,7 @@ def create_sci_obj(
                             _property="vocabulary:hasFactorLevel",
                             value=factor_level_value,
                         )
-                        relations_sci_obj.append(relation_temp)
+                        sci_obj_relations.append(relation_temp)
                 else:
                     logger.error(
                         f"No column with the name : {one_factor} can be found in your tabular data file."
@@ -382,8 +382,8 @@ def create_sci_obj(
                     raise DataImportError(
                         f"[bold red] This factor cannot be found in the tabular data file : [cyan]{one_factor}[/cyan]\nPlease check for typos in your tabular data or if the column really has the name you declared in the 'factor' sheet of the MIAPPE file.[/bold red]"
                     )
-            # on concatène les infos générales et les uri des germplasmes/facteurs puis on envoie le body et on le stock dans un dictionnaire
-            relations = relations_generales + relations_sci_obj
+            # on concatène les infos générales et les uri des germplasmes/facteurs puis on envoie le body et on le stock dans un dictionary
+            relations = general_relations + sci_obj_relations
             body = silex.ScientificObjectCreationDTO(
                 name=row["Plant ID"],
                 rdf_type=rdf_type,
@@ -396,7 +396,7 @@ def create_sci_obj(
             sci_obj_search = url_api.replace(base_uri, base_uri_namespace)
             sci_obj_uri.update({row["Plant ID"]: sci_obj_search})
             sci_obj_cache[row["Plant ID"]] = sci_obj_search
-            # Ici je stock les données qui m'interessent dans le dto d'avant dans un dictionnaire, que j'écris après dans le excel
+            # Ici je stock les données qui m'interessent dans le dto d'avant dans un dictionary, que j'écris après dans le excel
             dtos_to_export.append(
                 {
                     "studyId": body.experiment,
@@ -421,35 +421,35 @@ def create_sci_obj(
                 )
     # écriture des metadata des objets scientifiques sur le excel
     if dtos_to_export:
-        dossier_parent = os.path.dirname(document_data)
-        fichier_excel = os.path.join(
-            dossier_parent, "output", "miappe_template_filled.xlsx"
+        parent_folder = os.path.dirname(data_path)
+        excel_path = os.path.join(
+            parent_folder, "output", "miappe_template_filled.xlsx"
         )
-        os.makedirs(os.path.dirname(fichier_excel), exist_ok=True)
-        df_export = pd.DataFrame(dtos_to_export)
-        if os.path.exists(fichier_excel):
-            df_precedent = pd.read_excel(fichier_excel, sheet_name="Observation Unit")
-            df_final = pd.concat([df_precedent, df_export])
+        os.makedirs(os.path.dirname(excel_path), exist_ok=True)
+        export_df = pd.DataFrame(dtos_to_export)
+        if os.path.exists(excel_path):
+            previous_df = pd.read_excel(excel_path, sheet_name="Observation Unit")
+            final_df = pd.concat([previous_df, export_df])
             with pd.ExcelWriter(
-                fichier_excel, engine="openpyxl", mode="a", if_sheet_exists="replace"
+                excel_path, engine="openpyxl", mode="a", if_sheet_exists="replace"
             ) as writer:
-                df_final.to_excel(writer, sheet_name="Observation Unit", index=False)
+                final_df.to_excel(writer, sheet_name="Observation Unit", index=False)
         else:
             # First run: there is no workbook to append to yet, so create one.
-            with pd.ExcelWriter(fichier_excel, engine="openpyxl") as writer:
-                df_export.to_excel(writer, sheet_name="Observation Unit", index=False)
+            with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+                export_df.to_excel(writer, sheet_name="Observation Unit", index=False)
         logger.info("The scientific object sheet was successfully created/edited.")
     return sci_obj_uri, created_sci_obj
 
 
-def find_datafile_config(datafile_provenance, document_data):
-    """Return the 'data file' sheet row matching *document_data*, if any.
+def find_datafile_config(datafile_provenance, data_path):
+    """Return the 'data file' sheet row matching *data_path*, if any.
 
     The same suffix lookup was repeated in get_provenances, create_data and
     the datafile uploader; keeping it in one place makes the offline dry run
     able to reuse it too.
     """
-    datafile_name = os.path.basename(document_data)
+    datafile_name = os.path.basename(data_path)
     for suffix, config in datafile_provenance.items():
         if datafile_name == suffix:
             return config
@@ -457,11 +457,11 @@ def find_datafile_config(datafile_provenance, document_data):
 
 
 def get_provenances(
-    document_data, document_miappe, silex_API_Client, create_default=False
+    data_path, miappe_path, api_client, create_default=False
 ):
 
-    data_api = silex.DataApi(silex_API_Client)
-    dataframe1 = pd.read_excel(document_miappe, sheet_name="data file", header=1)
+    data_api = silex.DataApi(api_client)
+    dataframe1 = pd.read_excel(miappe_path, sheet_name="data file", header=1)
     dataframe1.drop(
         dataframe1.columns[dataframe1.columns.str.contains("unnamed", case=False)],
         axis=1,
@@ -485,7 +485,7 @@ def get_provenances(
 
     prov_dict = {}
     missing_prov = []
-    config = find_datafile_config(datafile_provenance, document_data)
+    config = find_datafile_config(datafile_provenance, data_path)
     if config is not None:
         for prov_name in config.values():
             if (
@@ -521,10 +521,10 @@ def get_provenances(
     return prov_dict, datafile_provenance, missing_prov
 
 
-def data_mapping(document_data, document_miappe):
-    df_data = pd.read_excel(document_data)
+def data_mapping(data_path, miappe_path):
+    df_data = pd.read_excel(data_path)
     dataframe = pd.read_excel(
-        document_miappe, sheet_name="mapping_table_variables", header=0
+        miappe_path, sheet_name="mapping_table_variables", header=0
     )
 
     morpho_info = {
@@ -537,20 +537,20 @@ def data_mapping(document_data, document_miappe):
 
 
 def create_data(
-    document_data,
-    document_miappe,
+    data_path,
+    miappe_path,
     login,
-    silex_API_Client,
+    api_client,
     morpho_info,
     prov_dict,
     datafile_provenance,
     sci_obj_uri,
-    avancement_upload=None,
+    upload_progress=None,
 ):
 
-    dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
+    dataframe = pd.read_excel(miappe_path, sheet_name="experiment", header=1)
     name_exp = dataframe["name"].dropna().iloc[0]
-    exp_search = silex.ExperimentsApi(silex_API_Client).search_experiments(
+    exp_search = silex.ExperimentsApi(api_client).search_experiments(
         name=name_exp
     )
     name_exp_uri = {name_exp: exp_search["result"][0].uri}
@@ -561,7 +561,7 @@ def create_data(
     provenance_datafile2 = None
     rdf_type_2 = None
     rdf_type_1 = None
-    config = find_datafile_config(datafile_provenance, document_data)
+    config = find_datafile_config(datafile_provenance, data_path)
     if config is not None:
         provenance_morpho = (
             config.get("prov_morpho_parameters")
@@ -591,7 +591,7 @@ def create_data(
         timezone_exp = dataframe["experiment_timezone"].dropna().iloc[0]
     else:
         timezone_exp = "UTC"
-    df_data = pd.read_excel(document_data)
+    df_data = pd.read_excel(data_path)
 
     # ON RECUPERE LE TEMPS DANS TIMESTAMP ET ON CONVERTI EVENTUELLEMENT
     df_data["Measuring Time"] = format_timestamps(df_data["timestamp"], timezone_exp)
@@ -609,7 +609,7 @@ def create_data(
     )
     rdf_type = rdf_type_2 if rdf_type_2 is not None else rdf_type_1
     mask_uri = []
-    data_api = silex.DataApi(silex_API_Client)
+    data_api = silex.DataApi(api_client)
 
     if prov is not None:
         data_search = data_api.get_data_file_descriptions_by_search(
@@ -641,15 +641,15 @@ def create_data(
                 )
 
     # Connexion toutes les 30 mins pour éviter les éventuels kick, mais très peu probable quand même vu la vitesse d'execution :p
-    connexion(login, silex_API_Client)
+    connect(login, api_client)
     timelimit = datetime.datetime.now() + datetime.timedelta(minutes=30)
-    Var_Api = silex.VariablesApi(silex_API_Client)
+    variables_api = silex.VariablesApi(api_client)
     # On recupère en une fois toutes les données tabulaires existantes pour la variable
     logfile = {}
     for key, value in morpho_info.items():
         logfile[value] = []
         nom_colonne = key
-        variable_search = Var_Api.search_variables(name=value)["result"]
+        variable_search = variables_api.search_variables(name=value)["result"]
         all_existing_data = data_api.search_data_list(
             variables=[variable_search[0].uri],
             experiments=[name_exp_uri[name_exp]],
@@ -665,9 +665,9 @@ def create_data(
         # GET/CREATE NUMERICAL DATA
         pas = 4000
         for slc in range(0, len(df_data), pas):
-            df_Slice = df_data.iloc[slc : slc + pas]
+            df_slice = df_data.iloc[slc : slc + pas]
             bodies = []
-            for row in df_Slice.to_dict("records"):
+            for row in df_slice.to_dict("records"):
                 target_uri = sci_obj_uri[row["Plant ID"]]
                 formatted_date = str(row["Measuring Time"]).replace("+", ".000+")
                 round_order_val = (
@@ -718,9 +718,9 @@ def create_data(
                         )
                         bodies.append(body)
                     if datetime.datetime.now() > timelimit:
-                        connexion(login, silex_API_Client)
+                        connect(login, api_client)
 
-                        data_api = silex.DataApi(silex_API_Client)
+                        data_api = silex.DataApi(api_client)
                         timelimit = datetime.datetime.now() + datetime.timedelta(
                             minutes=30
                         )
@@ -731,12 +731,12 @@ def create_data(
                 logger.info(
                     f"{len(bodies)} lines of data from {value} were sucessfully uploaded."
                 )
-                if avancement_upload:
-                    avancement_upload(value, len(bodies))
+                if upload_progress:
+                    upload_progress(value, len(bodies))
             else:
                 logger.info(f"all data for {value} was already uploaded")
-                if avancement_upload:
-                    avancement_upload(value, 0)
+                if upload_progress:
+                    upload_progress(value, 0)
 
     logger.info("Data Import complete with sucess")
     return True

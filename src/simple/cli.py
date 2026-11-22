@@ -18,7 +18,7 @@ from rich.prompt import IntPrompt, Prompt
 from simple.auth import (
     INSTANCES,
     check_connection_internet,
-    connexion,
+    connect,
     get_login,
     is_connected,
 )
@@ -28,7 +28,7 @@ from simple.data_import import (
     create_germplasm,
     create_sci_obj,
 )
-from simple.erreurs import (
+from simple.errors import (
     AuthenticationError,
     DataImportError,
     NetworkError,
@@ -47,17 +47,17 @@ from simple.import_service import (
     run_tabular_import,
     upload_datafiles,
 )
-from simple.systeme_logs import logger
+from simple.logging_setup import logger
 from simple.ui import (
     BANNER,
     HELP_MENU,
     MENU_CREATION,
     change_tabular_data,
-    choix_dossier_datafile,
-    choix_repertoire_travail,
+    choose_datafile_directory,
+    choose_working_directory,
     menu,
     show_data_panel,
-    show_data_table_dictionnaire,
+    show_data_table_dictionary,
 )
 
 # Display mapping for the semantic phases emitted by simple.import_service.
@@ -92,11 +92,11 @@ def _import_status(phase):
     return console.status(message, spinner=spinner)
 
 
-def ui_find_experiment(silex_API_Client):
+def ui_find_experiment(api_client):
     name_exp = Prompt.ask("[cyan]What experiment are you looking for?[/cyan]")
 
     with console.status("[bold green]Searching...[/bold green]"):
-        exp_data = api_find_experiment_by_name(silex_API_Client, name_exp)
+        exp_data = api_find_experiment_by_name(api_client, name_exp)
 
     if not exp_data:
         Prompt.ask(
@@ -115,77 +115,77 @@ def ui_find_experiment(silex_API_Client):
     Prompt.ask("Press Enter to go back to the main menu")
 
 
-def ui_create_experiment(document_miappe, silex_API_Client):
+def ui_create_experiment(miappe_path, api_client):
     console.print(
         "[bold green]__________________________Experiment Importation__________________________[/bold green]"
     )
 
-    def afficher_statut(mess):
+    def show_status(mess):
         console.print(mess)
 
     try:
         with console.status("[bold green]Processing experiment data...[/bold green]"):
             results = create_experiment(
-                document_miappe, silex_API_Client, status_callback=afficher_statut
+                miappe_path, api_client, status_callback=show_status
             )
         # affichage final
-        for nom, uri in results.items():
+        for name, uri in results.items():
             console.print(
-                f"[bold green][✓][/bold green] [bold cyan]Your experiment {nom} has the following uri:[/bold cyan] {uri}"
+                f"[bold green][✓][/bold green] [bold cyan]Your experiment {name} has the following uri:[/bold cyan] {uri}"
             )
     except DataImportError as e:
         # Gestion erreurs
         console.print(f"\n[bold red]Import Aborted:[/bold red] {e}")
 
 
-def ui_import_factor(document_miappe, silex_API_Client):
+def ui_import_factor(miappe_path, api_client):
     console.print(
         "[bold green]__________________________Factor Importation__________________________[bold green]"
     )
-    console.print(f"[cyan]Miappe file :[/cyan] {document_miappe}")
-    logger.info(f"Miappe file : {document_miappe}")
+    console.print(f"[cyan]Miappe file :[/cyan] {miappe_path}")
+    logger.info(f"Miappe file : {miappe_path}")
 
     with console.status(
         "[green]Importing/Searching for factors on Phis Instance...[/green]",
         spinner="aesthetic",
     ):
         factors_levels_uri, factors_uri = create_factor(
-            document_miappe, silex_API_Client
+            miappe_path, api_client
         )
 
     logger.info(f"{factors_uri},\n{factors_uri}")
-    show_data_table_dictionnaire("Factors", factors_uri)
-    show_data_table_dictionnaire("Factor levels", factors_levels_uri)
+    show_data_table_dictionary("Factors", factors_uri)
+    show_data_table_dictionary("Factor levels", factors_levels_uri)
 
     return factors_levels_uri, factors_uri
 
 
-def ui_import_germplasm(document_miappe, silex_API_Client):
+def ui_import_germplasm(miappe_path, api_client):
     console.print(
         "[bold green]__________________________Germplasm Importation__________________________[bold green]"
     )
-    logger.info(f"Miappe file : {document_miappe}")
+    logger.info(f"Miappe file : {miappe_path}")
 
     with console.status(
         "[green]Importing/searching for germplasms on Phis instance...[/green]",
         spinner="aesthetic",
     ):
         germplasms_uri, species_uri = create_germplasm(
-            document_miappe, silex_API_Client
+            miappe_path, api_client
         )
 
     logger.info(f"{germplasms_uri},\n{species_uri}")
-    show_data_table_dictionnaire("Created/Found Germplasms", germplasms_uri)
+    show_data_table_dictionary("Created/Found Germplasms", germplasms_uri)
 
     return germplasms_uri, species_uri
 
 
-def ui_import_sci_obj(document_data, document_miappe, silex_API_Client):
+def ui_import_sci_obj(data_path, miappe_path, api_client):
     console.print(
         "[bold green]__________________________Scientific objects Importation__________________________[bold green]"
     )
 
-    def afficher_statut(mess):
+    def show_status(mess):
         console.print(
             f"[bold cyan][+] [bold cyan][bold green][✓] {mess}[/bold green]"
         )
@@ -195,10 +195,10 @@ def ui_import_sci_obj(document_data, document_miappe, silex_API_Client):
         spinner="aesthetic",
     ):
         sci_obj_uri, created_sci_obj = create_sci_obj(
-            document_data,
-            document_miappe,
-            silex_API_Client,
-            status_callback=afficher_statut,
+            data_path,
+            miappe_path,
+            api_client,
+            status_callback=show_status,
         )
     found_sci_obj = len(sci_obj_uri) - created_sci_obj
 
@@ -216,7 +216,7 @@ def ui_import_sci_obj(document_data, document_miappe, silex_API_Client):
     return sci_obj_uri
 
 
-def ui_import_data(document_data, document_miappe, login, silex_API_Client):
+def ui_import_data(data_path, miappe_path, login, api_client):
     console.print(
         "[bold green]__________________________Tabular Data Importation__________________________[bold green]"
     )
@@ -248,7 +248,7 @@ def ui_import_data(document_data, document_miappe, login, silex_API_Client):
         )
 
     def show_provenances(prov_dict):
-        show_data_table_dictionnaire("Provenances", prov_dict)
+        show_data_table_dictionary("Provenances", prov_dict)
         console.print("[bold green] Provenances are OK !")
 
     def show_scientific_objects(found_sci_obj, created_sci_obj):
@@ -257,27 +257,27 @@ def ui_import_data(document_data, document_miappe, login, silex_API_Client):
         )
 
     # on gère l'affichage des progression d'importation de données
-    def afficher_progres(nom_variable, nb_lignes):
+    def show_progress(variable_name, line_count):
 
-        if nb_lignes > 0:
+        if line_count > 0:
             console.print(
-                f"[bold cyan] ↳ Sucess : {nb_lignes} lines of data added to [green]{nom_variable}[/green][/bold cyan]"
+                f"[bold cyan] ↳ Sucess : {line_count} lines of data added to [green]{variable_name}[/green][/bold cyan]"
             )
         else:
             console.print(
-                f"[dim white] ↳ Ignored : Data for {nom_variable} were already uploaded.[/dim white]"
+                f"[dim white] ↳ Ignored : Data for {variable_name} were already uploaded.[/dim white]"
             )
 
     run_tabular_import(
-        document_data,
-        document_miappe,
+        data_path,
+        miappe_path,
         login,
-        silex_API_Client,
+        api_client,
         confirm_data_mapping=confirm_data_mapping,
         confirm_create_default_provenances=confirm_create_default_provenances,
         on_provenances_ready=show_provenances,
         on_scientific_objects_ready=show_scientific_objects,
-        progress_callback=afficher_progres,
+        progress_callback=show_progress,
         status_factory=_import_status,
     )
 
@@ -285,13 +285,13 @@ def ui_import_data(document_data, document_miappe, login, silex_API_Client):
 
 
 def ui_import_datafiles(
-    document_miappe, document_data, wd_experience, login, silex_API_Client
+    miappe_path, data_path, experiment_directory, login, api_client
 ):
     console.print(
         "[bold green]__________________________Datafiles Importation__________________________[bold green]"
     )
     # on choisit le dossier photo ici (the function returns (wd, photos))
-    _, repertoire_photos = choix_dossier_datafile(wd_experience)
+    _, photos_directory = choose_datafile_directory(experiment_directory)
 
     def confirm_create_default_provenances(missing_provs):
         console.print(
@@ -307,7 +307,7 @@ def ui_import_datafiles(
         )
 
     def show_provenances(prov_dict):
-        show_data_table_dictionnaire("Provenances", prov_dict)
+        show_data_table_dictionary("Provenances", prov_dict)
         console.print("[bold green] Provenances are OK !")
 
     def show_scientific_objects(found_sci_obj, created_sci_obj):
@@ -376,11 +376,11 @@ def ui_import_datafiles(
         )
 
     plan = plan_datafiles_import(
-        document_miappe,
-        document_data,
-        wd_experience,
-        silex_API_Client,
-        repertoire_photos,
+        miappe_path,
+        data_path,
+        experiment_directory,
+        api_client,
+        photos_directory,
         confirm_create_default_provenances=confirm_create_default_provenances,
         confirm_protocol=confirm_protocol,
         confirm_discrepancies=confirm_discrepancies,
@@ -401,29 +401,29 @@ def ui_import_datafiles(
         TimeRemainingColumn(),
         console=console,
     ) as progress_bar:
-        taches_actives = {}
+        active_tasks = {}
 
-        def afficher_statut(mess):
+        def show_status(mess):
             progress_bar.console.print(
                 f"[bold cyan][+][bold cyan][bold green]{mess}[/bold green]"
             )
 
-        def gestion_barre(nom_tache, total=None, avance=0):
-            if nom_tache not in taches_actives:
-                taches_actives[nom_tache] = progress_bar.add_task(
-                    nom_tache, total=total
+        def update_progress_bar(task_name, total=None, advance=0):
+            if task_name not in active_tasks:
+                active_tasks[task_name] = progress_bar.add_task(
+                    task_name, total=total
                 )
-            if avance > 0:
-                progress_bar.advance(taches_actives[nom_tache], advance=avance)
+            if advance > 0:
+                progress_bar.advance(active_tasks[task_name], advance=advance)
 
         upload_datafiles(
             plan,
-            document_miappe,
-            document_data,
+            miappe_path,
+            data_path,
             login,
-            silex_API_Client,
-            status_callback=afficher_statut,
-            progress_callback=gestion_barre,
+            api_client,
+            status_callback=show_status,
+            progress_callback=update_progress_bar,
         )
         progress_bar.console.print(
             "[bold green][✓] Succeeded in importing all datafiles ![/bold green]"
@@ -454,16 +454,16 @@ def main():
     )
     Prompt.ask("Press a key to start")
     # INITIALISATION DES VARIABLES et de l'api ~
-    choix_dossier = None
-    document_miappe = None
-    wd_experience = None
+    chosen_folder = None
+    miappe_path = None
+    experiment_directory = None
     # setting default login, here guest on sandbox
-    silex_API_Client = silex.ApiClient(verbose=False)
-    etat = "[red]Hi, before anything, press [1] to log in.[/red]"
+    api_client = silex.ApiClient(verbose=False)
+    status = "[red]Hi, before anything, press [1] to log in.[/red]"
     # BOUCLE PRINCIPALE
     while True:
         try:
-            menu(etat)
+            menu(status)
             user_input = IntPrompt.ask(
                 "[green]\\[+][/green] [cyan]What would you like to do?[/cyan]"
             )
@@ -474,61 +474,61 @@ def main():
             elif user_input == 1:
                 login = get_login()
                 try:
-                    connexion(login, silex_API_Client)
-                    etat = f"[cyan]Your are logged in as[/cyan] [bold green]{login['identifier']}[/bold green] [cyan]on[/cyan] [bold green]{INSTANCES[login['host']]}[/bold green]."
+                    connect(login, api_client)
+                    status = f"[cyan]Your are logged in as[/cyan] [bold green]{login['identifier']}[/bold green] [cyan]on[/cyan] [bold green]{INSTANCES[login['host']]}[/bold green]."
                 except AuthenticationError as e:
-                    etat = "[bold red]You are not logged in, please try again...[/bold red]"
+                    status = "[bold red]You are not logged in, please try again...[/bold red]"
                     console.print(e)
 
             elif user_input == 2:
-                if is_connected(silex_API_Client):
-                    ui_find_experiment(silex_API_Client)
+                if is_connected(api_client):
+                    ui_find_experiment(api_client)
                 else:
                     console.print("[red]Please try to log in first.[/red]")
 
             elif user_input == 3:
-                if is_connected(silex_API_Client):
+                if is_connected(api_client):
                     # Gestion du repertoire de travail
-                    if choix_dossier:
-                        changement_repertoire = Prompt.ask(
-                            f"Would you like to continue to work on this experiment ? [bold]{choix_dossier}[/bold] ?",
+                    if chosen_folder:
+                        change_directory = Prompt.ask(
+                            f"Would you like to continue to work on this experiment ? [bold]{chosen_folder}[/bold] ?",
                             choices=["y", "n"],
                             default="y",
                         )
-                        if changement_repertoire == "n":
+                        if change_directory == "n":
                             (
-                                wd_experience,
-                                choix_dossier,
-                                document_miappe,
-                                document_data,
-                            ) = choix_repertoire_travail()
+                                experiment_directory,
+                                chosen_folder,
+                                miappe_path,
+                                data_path,
+                            ) = choose_working_directory()
                     else:
                         console.print(
                             "[cyan]You chose to import data on OpenSilex[/cyan]"
                         )
-                        result = choix_repertoire_travail()
+                        result = choose_working_directory()
                         if result[0] is not None:
                             (
-                                wd_experience,
-                                choix_dossier,
-                                document_miappe,
-                                document_data,
+                                experiment_directory,
+                                chosen_folder,
+                                miappe_path,
+                                data_path,
                             ) = result
                         else:
                             break
-                    if not wd_experience:
+                    if not experiment_directory:
                         break
                     while True:
-                        if choix_dossier is None:
+                        if chosen_folder is None:
                             console.print(
                                 "[cyan]You chose to import data on OpenSilex[/cyan]"
                             )
                             (
-                                wd_experience,
-                                choix_dossier,
-                                document_miappe,
-                                document_data,
-                            ) = choix_repertoire_travail()
+                                experiment_directory,
+                                chosen_folder,
+                                miappe_path,
+                                data_path,
+                            ) = choose_working_directory()
                         # Gestion du repertoire de travail
                         console.print(
                             Panel(
@@ -537,63 +537,63 @@ def main():
                                 border_style="green",
                             )
                         )
-                        choix_creation = IntPrompt.ask(
+                        creation_choice = IntPrompt.ask(
                             "[green]Please make your choice[/green]"
                         )
 
-                        if choix_creation == 1:
-                            ui_create_experiment(document_miappe, silex_API_Client)
+                        if creation_choice == 1:
+                            ui_create_experiment(miappe_path, api_client)
 
-                        elif choix_creation == 2:
-                            ui_import_germplasm(document_miappe, silex_API_Client)
+                        elif creation_choice == 2:
+                            ui_import_germplasm(miappe_path, api_client)
 
-                        elif choix_creation == 3:
-                            ui_import_factor(document_miappe, silex_API_Client)
+                        elif creation_choice == 3:
+                            ui_import_factor(miappe_path, api_client)
 
-                        elif choix_creation == 4:
+                        elif creation_choice == 4:
                             ui_import_sci_obj(
-                                document_data, document_miappe, silex_API_Client
+                                data_path, miappe_path, api_client
                             )
 
-                        elif choix_creation == 5:
+                        elif creation_choice == 5:
                             ui_import_datafiles(
-                                document_miappe,
-                                document_data,
-                                wd_experience,
+                                miappe_path,
+                                data_path,
+                                experiment_directory,
                                 login,
-                                silex_API_Client,
+                                api_client,
                             )
 
-                        elif choix_creation == 6:
+                        elif creation_choice == 6:
                             ui_import_data(
-                                document_data, document_miappe, login, silex_API_Client
+                                data_path, miappe_path, login, api_client
                             )
 
-                        elif choix_creation == 7:
-                            ui_create_experiment(document_miappe, silex_API_Client)
-                            ui_import_germplasm(document_miappe, silex_API_Client)
-                            ui_import_factor(document_miappe, silex_API_Client)
+                        elif creation_choice == 7:
+                            ui_create_experiment(miappe_path, api_client)
+                            ui_import_germplasm(miappe_path, api_client)
+                            ui_import_factor(miappe_path, api_client)
                             ui_import_sci_obj(
-                                document_data, document_miappe, silex_API_Client
+                                data_path, miappe_path, api_client
                             )
                             ui_import_datafiles(
-                                document_miappe,
-                                document_data,
-                                wd_experience,
+                                miappe_path,
+                                data_path,
+                                experiment_directory,
                                 login,
-                                silex_API_Client,
+                                api_client,
                             )
                             ui_import_data(
-                                document_data, document_miappe, login, silex_API_Client
+                                data_path, miappe_path, login, api_client
                             )
                             break
 
-                        elif choix_creation == 8:
-                            wd_experience, document_data, repertoire_photos = (
-                                change_tabular_data(wd_experience)
+                        elif creation_choice == 8:
+                            experiment_directory, data_path, photos_directory = (
+                                change_tabular_data(experiment_directory)
                             )
 
-                        elif choix_creation == 9:
+                        elif creation_choice == 9:
                             break
                 else:
                     console.print("[bold red]Your are not logged in[/bold red]")

@@ -1,12 +1,12 @@
 import opensilexClientToolsPython as silex
 import pandas as pd
 
-from simple.erreurs import DataImportError
-from simple.systeme_logs import logger
+from simple.errors import DataImportError
+from simple.logging_setup import logger
 
 
-def api_find_experiment_by_name(silex_API_Client, name_exp):
-    exp_api = silex.ExperimentsApi(silex_API_Client)
+def api_find_experiment_by_name(api_client, name_exp):
+    exp_api = silex.ExperimentsApi(api_client)
     exp_data=None
     exp_data = exp_api.search_experiments(name=name_exp)
     if exp_data["result"] :
@@ -16,9 +16,9 @@ def api_find_experiment_by_name(silex_API_Client, name_exp):
     return exp_data["result"]
 
 
-def create_experiment(document_miappe, silex_API_Client, status_callback=None):
+def create_experiment(miappe_path, api_client, status_callback=None):
 
-    dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
+    dataframe = pd.read_excel(miappe_path, sheet_name="experiment", header=1)
     dataframe.drop(
         dataframe.columns[dataframe.columns.str.contains("unnamed", case=False)],
         axis=1,
@@ -30,14 +30,14 @@ def create_experiment(document_miappe, silex_API_Client, status_callback=None):
     
     records = dataframe.where(pd.notnull(dataframe), None).to_dict("records")
 
-    Exp_Api = silex.ExperimentsApi(silex_API_Client)
-    Org_Api = silex.OrganizationsApi(silex_API_Client)
-    Sec_Api = silex.SecurityApi(silex_API_Client)
-    Proj_Api = silex.ProjectsApi(silex_API_Client)
+    experiments_api = silex.ExperimentsApi(api_client)
+    organizations_api = silex.OrganizationsApi(api_client)
+    security_api = silex.SecurityApi(api_client)
+    projects_api = silex.ProjectsApi(api_client)
 
-    NameExp_uri = {}
+    name_to_uri = {}
     for row_dict in records:
-        NameExp_uri = {}
+        name_to_uri = {}
 
         # Fonction pour split, strip et retourner un truc vide si la case est vide
         def to_list(key):
@@ -45,195 +45,195 @@ def create_experiment(document_miappe, silex_API_Client, status_callback=None):
             return [x.strip() for x in str(val).split(",")] if val is not None else []
 
         # get the info of everythng for the experiment
-        NameExp = row_dict.get("name")
-        StartExp = row_dict.get("start_date")
-        EndExp = row_dict.get("end_date")
-        DescriptionExp = row_dict.get("description", "")
-        ObjectiveExp = row_dict.get("objective")
-        Is_Public = bool(row_dict.get("is_public", True))
+        experiment_name = row_dict.get("name")
+        start_date = row_dict.get("start_date")
+        end_date = row_dict.get("end_date")
+        description = row_dict.get("description", "")
+        objective = row_dict.get("objective")
+        is_public = bool(row_dict.get("is_public", True))
         # look for the experiment, if found, no creation !
-        Exp_Src = Exp_Api.search_experiments(name=NameExp)["result"]
-        if Exp_Src:
-            NameExp_uri[NameExp] = Exp_Src[0].uri
+        exp_result = experiments_api.search_experiments(name=experiment_name)["result"]
+        if exp_result:
+            name_to_uri[experiment_name] = exp_result[0].uri
             if status_callback:
                 status_callback(
-                    f"[bold green][✓][/bold green] [bold yellow]An experiment was found with this URI :[/bold yellow]  {NameExp_uri[NameExp]}"
+                    f"[bold green][✓][/bold green] [bold yellow]An experiment was found with this URI :[/bold yellow]  {name_to_uri[experiment_name]}"
                 )
             continue
 
-        if not ObjectiveExp:
+        if not objective:
             logger.error("Objective Missing From MIAPPE file experiment sheet")
             raise DataImportError("Objective Missing From MIAPPE file experiment sheet")
-        if not StartExp:
+        if not start_date:
             logger.error("Starting Date Missing From MIAPPE file experiment sheet")
             raise DataImportError(
                 "Starting Date Missing From MIAPPE file experiment sheet"
             )
-        if not EndExp:
+        if not end_date:
             logger.warning("Ending Date Missing From MIAPPE file experiment sheet")
         if status_callback:
             status_callback(
-                f"[bold green]Start Date:[/bold green] [bold cyan]{StartExp}"
+                f"[bold green]Start Date:[/bold green] [bold cyan]{start_date}"
             )
             status_callback(
-                f"[bold green]Objective:[/bold green] [bold cyan]{str(ObjectiveExp)[0:400]}..."
+                f"[bold green]Objective:[/bold green] [bold cyan]{str(objective)[0:400]}..."
             )
             status_callback(
-                f"[bold green]Description:[/bold green] [bold cyan]{str(DescriptionExp)[0:400]}...[/bold cyan]"
+                f"[bold green]Description:[/bold green] [bold cyan]{str(description)[0:400]}...[/bold cyan]"
             )
 
         # get the lists
-        ls_Organisation = to_list("organisations")
-        ls_Projects = to_list("projects")
-        ls_Facilities = to_list("facilities")
-        ls_Scientific_Supervisors = to_list("scientific_supervisors")
-        ls_Technical_Supervisors = to_list("technical_supervisors")
-        ls_Groups = to_list("groups")
+        organisation_uris = to_list("organisations")
+        project_uris = to_list("projects")
+        facility_uris = to_list("facilities")
+        scientific_supervisor_uris = to_list("scientific_supervisors")
+        technical_supervisor_uris = to_list("technical_supervisors")
+        group_uris = to_list("groups")
 
-        Organisation_uri = {}
-        for organisation in ls_Organisation:
+        organisation_uri_map = {}
+        for organisation in organisation_uris:
             if organisation is None:
                 logger.warning(
                     "Organisation Missing From MIAPPE file experiment sheet"
                 )
-                ls_Organisation = None
+                organisation_uris = None
             else:
-                Org_Src = Org_Api.search_organizations(pattern=organisation)["result"]
-                if Org_Src:
-                    Organisation_uri.update({organisation: Org_Src[0].uri})
+                org_result = organizations_api.search_organizations(pattern=organisation)["result"]
+                if org_result:
+                    organisation_uri_map.update({organisation: org_result[0].uri})
                     if status_callback:
                         status_callback(
-                            f"[bold green][✓][/bold green] [green]{organisation}[/green] URI: {Org_Src[0].uri}"
+                            f"[bold green][✓][/bold green] [green]{organisation}[/green] URI: {org_result[0].uri}"
                         )
-                    ls_Organisation = list(Organisation_uri.values())
+                    organisation_uris = list(organisation_uri_map.values())
                 else:
                     logger.warning(
                         f"{organisation}: Unknown Organisation "
                     )
-                    ls_Organisation = None
+                    organisation_uris = None
 
-        Groups_uri = {}
-        for group in ls_Groups:
+        group_uri_map = {}
+        for group in group_uris:
             if group is None:
                 logger.warning(
                     "Group Missing From MIAPPE file experiment sheet"
                 )
-                ls_Groups = None
+                group_uris = None
             else:
-                Sec_Src = Sec_Api.search_groups(name=group)["result"]
-                if Sec_Src:
-                    Groups_uri.update({group: Sec_Src[0].uri})
+                sec_result = security_api.search_groups(name=group)["result"]
+                if sec_result:
+                    group_uri_map.update({group: sec_result[0].uri})
                     if status_callback:
                         status_callback(
-                            f"[bold green][✓][/bold green] [green]{group}[/green] URI: {Sec_Src[0].uri}"
+                            f"[bold green][✓][/bold green] [green]{group}[/green] URI: {sec_result[0].uri}"
                         )
-                    ls_Groups = list(Groups_uri.values())
+                    group_uris = list(group_uri_map.values())
                 else:
                     logger.warning(f"{group}: Unknown Group")
-                    ls_Groups = None
-        Projects_uri = {}
-        for project in ls_Projects:
+                    group_uris = None
+        project_uri_map = {}
+        for project in project_uris:
             if project is None:
                 logger.warning(
                     "[bold yellow]Project Missing From MIAPPE experiment sheet[/bold yellow]"
                 )
-                ls_Projects = None
+                project_uris = None
             else:
-                Proj_Src = Proj_Api.search_projects(name=project)["result"]
-                if Proj_Src:
-                    Projects_uri.update({project: Proj_Src[0].uri})
+                proj_result = projects_api.search_projects(name=project)["result"]
+                if proj_result:
+                    project_uri_map.update({project: proj_result[0].uri})
                     if status_callback:
                         status_callback(
-                            f"[bold green][✓][/bold green] [green]{project}[/green] URI: {Proj_Src[0].uri}"
+                            f"[bold green][✓][/bold green] [green]{project}[/green] URI: {proj_result[0].uri}"
                         )
-                    ls_Projects = list(Projects_uri.values())
+                    project_uris = list(project_uri_map.values())
                 else:
                     logger.warning(f"[bold red]{project}: Unknown Project[/bold red]")
-                    ls_Projects = None
+                    project_uris = None
 
-        Facilities_uri = {}
-        for facility in ls_Facilities:
+        facility_uri_map = {}
+        for facility in facility_uris:
             if facility is None:
                 logger.warning(
                     "[bold yellow]Organisation Missing from MIAPPE experiment sheet[/bold yellow]"
                 )
-                ls_Facilities = None
+                facility_uris = None
             else:
-                Org_Src = Org_Api.search_facilities(pattern=facility)["result"]
-                if Org_Src:
-                    Facilities_uri.update({facility: Org_Src[0].uri})
+                org_result = organizations_api.search_facilities(pattern=facility)["result"]
+                if org_result:
+                    facility_uri_map.update({facility: org_result[0].uri})
                     if status_callback:
                         status_callback(
-                            f"[bold green][✓][/bold green] [green]{facility}[/green] URI: {Org_Src[0].uri}"
+                            f"[bold green][✓][/bold green] [green]{facility}[/green] URI: {org_result[0].uri}"
                         )
-                    ls_Facilities = list(Facilities_uri.values())
+                    facility_uris = list(facility_uri_map.values())
                 else:
                     logger.warning(
                         f"[bold red] {facility}: Unknown Facility[/bold red]"
                     )
-                    ls_Facilities = None
-        Scientific_Supervisors_uri = {}
-        for scisup in ls_Scientific_Supervisors:
+                    facility_uris = None
+        scientific_supervisor_uri_map = {}
+        for scisup in scientific_supervisor_uris:
             if scisup is None:
                 logger.warning(
                     "[bold yellow]Scientific Supervisors Missing from MIAPPE experiment sheet[/bold yellow]"
                 )
-                ls_Scientific_Supervisors = None
+                scientific_supervisor_uris = None
             else:
-                Sec_Src = Sec_Api.search_persons(name=str(scisup))["result"]
-                if Sec_Src:
-                    Scientific_Supervisors_uri.update({scisup: Sec_Src[0].uri})
+                sec_result = security_api.search_persons(name=str(scisup))["result"]
+                if sec_result:
+                    scientific_supervisor_uri_map.update({scisup: sec_result[0].uri})
                     if status_callback:
                         status_callback(
-                            f"[bold green][✓][/bold green] [green]{scisup}[/green] URI: {Sec_Src[0].uri}"
+                            f"[bold green][✓][/bold green] [green]{scisup}[/green] URI: {sec_result[0].uri}"
                         )
-                    ls_Scientific_Supervisors = list(
-                        Scientific_Supervisors_uri.values()
+                    scientific_supervisor_uris = list(
+                        scientific_supervisor_uri_map.values()
                     )
                 else:
                     logger.warning(
                         f"[bold red]{scisup}: Unknown Scientific Supervisors[/bold red]"
                     )
-                    ls_Scientific_Supervisors = None
-        Technical_Supervisors_uri = {}
-        for techsup in ls_Technical_Supervisors:
+                    scientific_supervisor_uris = None
+        technical_supervisor_uri_map = {}
+        for techsup in technical_supervisor_uris:
             if techsup is None:
                 logger.warning(
                     " [bold yellow]Technical Supervisors Missing from MIAPPE experiment sheet[/bold yellow]"
                 )
-                ls_Technical_Supervisors = None
+                technical_supervisor_uris = None
             else:
-                Sec_Src = Sec_Api.search_persons(name=techsup)["result"]
-                if Sec_Src:
-                    Technical_Supervisors_uri.update({techsup: Sec_Src[0].uri})
+                sec_result = security_api.search_persons(name=techsup)["result"]
+                if sec_result:
+                    technical_supervisor_uri_map.update({techsup: sec_result[0].uri})
                     if status_callback:
                         status_callback(
-                            f"[bold green][✓][/bold green] [green]{techsup}[/green] URI: {Sec_Src[0].uri}"
+                            f"[bold green][✓][/bold green] [green]{techsup}[/green] URI: {sec_result[0].uri}"
                         )
-                    ls_Technical_Supervisors = list(Technical_Supervisors_uri.values())
+                    technical_supervisor_uris = list(technical_supervisor_uri_map.values())
                 else:
                     logger.warning(
                         f"[bold red] {techsup}: Unknown Technical Supervisors[/bold red]"
                     )
-                    ls_Technical_Supervisors = None
+                    technical_supervisor_uris = None
         body = silex.ExperimentCreationDTO(
-            name=NameExp,
-            start_date=StartExp,
-            end_date=EndExp,
-            description=DescriptionExp,
-            objective=ObjectiveExp,
-            organisations=ls_Organisation,
-            projects=ls_Projects,
-            facilities=ls_Facilities,
-            scientific_supervisors=ls_Scientific_Supervisors,
-            technical_supervisors=ls_Technical_Supervisors,
-            groups=ls_Groups,
-            is_public=Is_Public,
+            name=experiment_name,
+            start_date=start_date,
+            end_date=end_date,
+            description=description,
+            objective=objective,
+            organisations=organisation_uris,
+            projects=project_uris,
+            facilities=facility_uris,
+            scientific_supervisors=scientific_supervisor_uris,
+            technical_supervisors=technical_supervisor_uris,
+            groups=group_uris,
+            is_public=is_public,
         )
 
-        Exp_Api.create_experiment(body=body)
-        logger.info(NameExp_uri)
-        Exp_Src = Exp_Api.search_experiments(name=NameExp)
-        NameExp_uri.update({NameExp: Exp_Src["result"][0].uri})
+        experiments_api.create_experiment(body=body)
+        logger.info(name_to_uri)
+        exp_result = experiments_api.search_experiments(name=experiment_name)
+        name_to_uri.update({experiment_name: exp_result["result"][0].uri})
 
-    return NameExp_uri
+    return name_to_uri

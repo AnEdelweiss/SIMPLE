@@ -3,7 +3,7 @@
 The CLI and the GUI both drive these functions. User interaction is injected
 through callbacks: a callback displays something and/or returns a decision,
 while this module only performs validation, API calls and uploads. Errors are
-raised as :mod:`simple.erreurs` exceptions so each front-end can present them
+raised as :mod:`simple.errors` exceptions so each front-end can present them
 the way it wants.
 
 ``status_factory`` receives a phase identifier (the ``PHASE_*`` constants) and
@@ -30,8 +30,8 @@ from simple.datafile_import import (
     execute_datafiles_upload,
     get_round_protocol_info,
 )
-from simple.erreurs import SimpleBaseException
-from simple.systeme_logs import logger
+from simple.errors import SimpleBaseException
+from simple.logging_setup import logger
 
 PHASE_CHECKING_VARIABLE_MAP = "checking_variable_map"
 PHASE_CHECKING_PROVENANCES = "checking_provenances"
@@ -110,16 +110,16 @@ def _notify(callback, *args):
 
 
 def _resolve_provenances(
-    document_data,
-    document_miappe,
-    silex_API_Client,
+    data_path,
+    miappe_path,
+    api_client,
     confirm_create_default,
     status_factory,
 ):
     """Look provenances up, asking whether to create defaults when missing."""
     with _status(status_factory, PHASE_CHECKING_PROVENANCES):
         prov_dict, datafile_provenance, missing_provs = get_provenances(
-            document_data, document_miappe, silex_API_Client
+            data_path, miappe_path, api_client
         )
     if missing_provs:
         if not confirm_create_default(missing_provs):
@@ -128,16 +128,16 @@ def _resolve_provenances(
             )
         with _status(status_factory, PHASE_CREATING_PROVENANCES):
             prov_dict, datafile_provenance, _ = get_provenances(
-                document_data, document_miappe, silex_API_Client, create_default=True
+                data_path, miappe_path, api_client, create_default=True
             )
     return prov_dict, datafile_provenance, missing_provs
 
 
 def run_tabular_import(
-    document_data,
-    document_miappe,
+    data_path,
+    miappe_path,
     login,
-    silex_API_Client,
+    api_client,
     *,
     confirm_data_mapping,
     confirm_create_default_provenances,
@@ -157,15 +157,15 @@ def run_tabular_import(
     (e.g. the GUI batch import) skip the duplicate API lookups.
     """
     with _status(status_factory, PHASE_CHECKING_VARIABLE_MAP):
-        morpho_info = data_mapping(document_data, document_miappe)
+        morpho_info = data_mapping(data_path, miappe_path)
     if not confirm_data_mapping(morpho_info):
         raise SimpleBaseException("Data import cancelled by the user.")
 
     if provenances is None:
         prov_dict, datafile_provenance, _ = _resolve_provenances(
-            document_data,
-            document_miappe,
-            silex_API_Client,
+            data_path,
+            miappe_path,
+            api_client,
             confirm_create_default_provenances,
             status_factory,
         )
@@ -176,7 +176,7 @@ def run_tabular_import(
     if sci_obj is None:
         with _status(status_factory, PHASE_SCIENTIFIC_OBJECTS):
             sci_obj_uri, created_sci_obj = create_sci_obj(
-                document_data, document_miappe, silex_API_Client
+                data_path, miappe_path, api_client
             )
     else:
         sci_obj_uri, created_sci_obj = sci_obj
@@ -189,15 +189,15 @@ def run_tabular_import(
     try:
         with _status(status_factory, PHASE_UPLOADING_DATA):
             create_data(
-                document_data,
-                document_miappe,
+                data_path,
+                miappe_path,
                 login,
-                silex_API_Client,
+                api_client,
                 morpho_info,
                 prov_dict,
                 datafile_provenance,
                 sci_obj_uri,
-                avancement_upload=progress_callback,
+                upload_progress=progress_callback,
             )
     except IMPORT_STEP_ERRORS as e:
         logger.error(DATA_IMPORT_FAILED_MESSAGE)
@@ -213,10 +213,10 @@ def run_tabular_import(
 
 
 def plan_datafiles_import(
-    document_miappe,
-    document_data,
-    wd_experience,
-    silex_API_Client,
+    miappe_path,
+    data_path,
+    experiment_directory,
+    api_client,
     photos_dir,
     *,
     confirm_create_default_provenances,
@@ -241,9 +241,9 @@ def plan_datafiles_import(
     """
     if provenances is None:
         prov_dict, datafile_provenance, _ = _resolve_provenances(
-            document_data,
-            document_miappe,
-            silex_API_Client,
+            data_path,
+            miappe_path,
+            api_client,
             confirm_create_default_provenances,
             status_factory,
         )
@@ -254,7 +254,7 @@ def plan_datafiles_import(
     if sci_obj is None:
         with _status(status_factory, PHASE_SCIENTIFIC_OBJECTS):
             sci_obj_uri, created_sci_obj = create_sci_obj(
-                document_data, document_miappe, silex_API_Client
+                data_path, miappe_path, api_client
             )
     else:
         sci_obj_uri, created_sci_obj = sci_obj
@@ -266,14 +266,14 @@ def plan_datafiles_import(
 
     with _status(status_factory, PHASE_ROUND_PROTOCOL):
         cam_pos, plant_mask, protocol_found = get_round_protocol_info(
-            wd_experience, document_data
+            experiment_directory, data_path
         )
     if not confirm_protocol(protocol_found):
         raise SimpleBaseException("User cancelled import at Round protocol phase.")
 
     if datafile_check is None:
         with _status(status_factory, PHASE_COMPARING_DATAFILES):
-            datafile_check = check_for_datafiles(document_data, photos_dir)
+            datafile_check = check_for_datafiles(data_path, photos_dir)
     (
         dict_datafile1,
         missing_datafile1,
@@ -310,10 +310,10 @@ def plan_datafiles_import(
 
 def upload_datafiles(
     plan,
-    document_miappe,
-    document_data,
+    miappe_path,
+    data_path,
     login,
-    silex_API_Client,
+    api_client,
     *,
     status_callback=None,
     progress_callback=None,
@@ -321,8 +321,8 @@ def upload_datafiles(
     """Upload the datafiles described by a :func:`plan_datafiles_import` plan."""
     try:
         execute_datafiles_upload(
-            document_miappe,
-            document_data,
+            miappe_path,
+            data_path,
             plan.df_data,
             plan.dict_datafile1,
             plan.dict_datafile2,
@@ -333,7 +333,7 @@ def upload_datafiles(
             plan.cam_pos,
             plan.plant_mask,
             login,
-            silex_API_Client,
+            api_client,
             status_callback=status_callback,
             progress_callback=progress_callback,
         )
@@ -346,11 +346,11 @@ def upload_datafiles(
 
 
 def run_datafiles_import(
-    document_miappe,
-    document_data,
-    wd_experience,
+    miappe_path,
+    data_path,
+    experiment_directory,
     login,
-    silex_API_Client,
+    api_client,
     photos_dir,
     *,
     confirm_create_default_provenances,
@@ -368,10 +368,10 @@ def run_datafiles_import(
 ):
     """Plan then upload datafiles in one call (used by the GUI)."""
     plan = plan_datafiles_import(
-        document_miappe,
-        document_data,
-        wd_experience,
-        silex_API_Client,
+        miappe_path,
+        data_path,
+        experiment_directory,
+        api_client,
         photos_dir,
         confirm_create_default_provenances=confirm_create_default_provenances,
         confirm_protocol=confirm_protocol,
@@ -386,10 +386,10 @@ def run_datafiles_import(
     )
     return upload_datafiles(
         plan,
-        document_miappe,
-        document_data,
+        miappe_path,
+        data_path,
         login,
-        silex_API_Client,
+        api_client,
         status_callback=status_callback,
         progress_callback=progress_callback,
     )

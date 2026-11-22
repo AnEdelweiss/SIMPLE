@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import opensilexClientToolsPython as silex
 import pytest
 
-from simple.erreurs import SimpleBaseException
+from simple.errors import SimpleBaseException
 from simple.import_service import (
     PHASE_CHECKING_PROVENANCES,
     PHASE_CHECKING_VARIABLE_MAP,
@@ -110,7 +110,7 @@ class TestRunTabularImport:
             {"Prov": "prov:1"},
             {"d.csv": {}},
             {"P1": "so:1", "P2": "so:2"},
-            avancement_upload=progress,
+            upload_progress=progress,
         )
 
     @patch("simple.import_service.create_data")

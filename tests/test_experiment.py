@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from simple.erreurs import DataImportError
+from simple.errors import DataImportError
 from simple.experiment import api_find_experiment_by_name, create_experiment
 
 
@@ -20,7 +20,7 @@ class TestExperiment:
         # 2. Act : On lance la fonction
         result = api_find_experiment_by_name("fake_client", "Mon_Experience")
 
-        # 3. Assert : On vérifie que la recherche a bien été appelée avec le bon nom
+        # 3. Assert : On vérifie que la recherche a bien été appelée avec le bon name
         mock_api_instance.search_experiments.assert_called_once_with(
             name="Mon_Experience"
         )

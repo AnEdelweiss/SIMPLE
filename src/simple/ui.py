@@ -6,8 +6,8 @@ from rich.table import Table
 
 from simple.__init__ import __version__
 from simple.console import console
-from simple.erreurs import SimpleBaseException
-from simple.systeme_logs import logger
+from simple.errors import SimpleBaseException
+from simple.logging_setup import logger
 
 BANNER = f"""[green]
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -79,14 +79,14 @@ Here is a quick start :
 """
 
 
-def menu(etat):
+def menu(status):
     menu_text = f"""[green]
     ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     ⠀⠀⠀⢀⣠⡴⠖⠛⣛⠛⠛⠛⠲⢦⣄⡀⠀⠀⠀
     ⠀⢀⣴⠟⠁⠀⠀⣴⠟⣿⠶⣤⡀⠀⠈⠻⣦⡀⠀
     ⢀⡾⠁⠀⠀⢀⡼⠃⠀⠘⣧⠈⠙⠳⢦⡀⠈⢷⡀
     ⣾⠁⠀⠀⢠⡞⠁⠀⠀⠀⠘⣧⠀⣴⠿⡇⠀⠈⣷
-    ⣿⠀⠀⣰⣟⣀⣠⣤⣤⡤⠤⠾⣿⣥⣄⣿⠀⠀⣿   [bold white]{etat}[/bold white]
+    ⣿⠀⠀⣰⣟⣀⣠⣤⣤⡤⠤⠾⣿⣥⣄⣿⠀⠀⣿   [bold white]{status}[/bold white]
     ⢿⡀⠀⠹⣟⠳⠶⣤⣄⣀⠀⠀⣿⠀⣨⡟⠀⢀⡿   
     ⠘⢧⡀⠀⠹⣆⠀⠀⠀⢉⣹⣷⣿⣰⠏⠀⢀⡼⠃
     ⠀⠈⠳⣄⡀⠘⣧⣴⣞⣋⣁⣀⣿⠋⢀⣠⠞⠁⠀
@@ -105,14 +105,14 @@ def menu(etat):
     )
 
 
-def choix_repertoire_travail():
+def choose_working_directory():
 
     working_dir_path = Prompt.ask(
         "[cyan]Please paste the complete ABSOLUTE file path to the parent directory of your experiments.[/cyan]\n[magenta](use ctrl+maj+V when pasting in the console)[/magenta]\n"
     )
     working_dir = os.path.normpath(rf"{working_dir_path}")
     try:
-        liste_dossiers = os.listdir(working_dir)
+        folders = os.listdir(working_dir)
     except FileNotFoundError:
         logger.warning(f"{working_dir_path} doesn't exist")
         raise SimpleBaseException(
@@ -123,130 +123,130 @@ def choix_repertoire_travail():
         raise SimpleBaseException(
             f"You don't have the permission to read from {working_dir_path}"
         )
-    nombre = len(liste_dossiers)
+    count = len(folders)
 
     table = Table(title="Files found !", header_style="bold magenta")
     table.add_column("Index", style="cyan")
     table.add_column("Nom", style="green")
-    for index, nom in enumerate(liste_dossiers):
-        table.add_row(str(index), nom)
+    for index, name in enumerate(folders):
+        table.add_row(str(index), name)
     console.print(table)
 
     while True:
-        choix_exp = IntPrompt.ask(
-            f"[green]Chose the file containing your experiment : (0-{nombre - 1})[/green]"
+        experiment_choice = IntPrompt.ask(
+            f"[green]Chose the file containing your experiment : (0-{count - 1})[/green]"
         )
-        if 0 <= choix_exp < nombre:
-            choix_dossier = liste_dossiers[choix_exp]
-            wd_experience = os.path.join(working_dir, choix_dossier)
+        if 0 <= experiment_choice < count:
+            chosen_folder = folders[experiment_choice]
+            experiment_directory = os.path.join(working_dir, chosen_folder)
             console.print(
-                f"[cyan]Your working directory is now :[/cyan] [bold green]{wd_experience}[/bold green]"
+                f"[cyan]Your working directory is now :[/cyan] [bold green]{experiment_directory}[/bold green]"
             )
 
-            listedfiles = os.listdir(wd_experience)
-            nombre_fichiers = len(listedfiles)
+            listed_files = os.listdir(experiment_directory)
+            file_count = len(listed_files)
 
-            table_fichiers = Table(title="Files found !", header_style="bold magenta")
-            table_fichiers.add_column("Index", style="cyan")
-            table_fichiers.add_column("Nom", style="yellow")
-            for index, nom in enumerate(listedfiles):
-                table_fichiers.add_row(str(index), nom)
-            console.print(table_fichiers)
+            files_table = Table(title="Files found !", header_style="bold magenta")
+            files_table.add_column("Index", style="cyan")
+            files_table.add_column("Nom", style="yellow")
+            for index, name in enumerate(listed_files):
+                files_table.add_row(str(index), name)
+            console.print(files_table)
 
             while True:
-                choix_temp = IntPrompt.ask(
-                    f"[green]Please chose the filled MIAPPE template (0-{nombre_fichiers - 1})[/green]"
+                selection = IntPrompt.ask(
+                    f"[green]Please chose the filled MIAPPE template (0-{file_count - 1})[/green]"
                 )
-                if 0 <= choix_temp < nombre_fichiers:
-                    choix_doc = listedfiles[choix_temp]
+                if 0 <= selection < file_count:
+                    miappe_name = listed_files[selection]
                     console.print(
-                        f"[cyan]Your MIAPPE template is :[/cyan] [bold green]{choix_doc}[/bold green]"
+                        f"[cyan]Your MIAPPE template is :[/cyan] [bold green]{miappe_name}[/bold green]"
                     )
-                    document_miappe = os.path.join(wd_experience, choix_doc)
+                    miappe_path = os.path.join(experiment_directory, miappe_name)
                     break
                 else:
                     console.print("[bold red]Incorrect selection... :([/bold red]")
-            console.print(table_fichiers)
+            console.print(files_table)
 
             while True:
-                choix_temp = IntPrompt.ask(
-                    f"[green]Please chose the tabular data file (0-{nombre_fichiers - 1})[/green]"
+                selection = IntPrompt.ask(
+                    f"[green]Please chose the tabular data file (0-{file_count - 1})[/green]"
                 )
-                if 0 <= choix_temp < nombre_fichiers:
-                    choix_data = listedfiles[choix_temp]
+                if 0 <= selection < file_count:
+                    selected_name = listed_files[selection]
                     console.print(
-                        f"[cyan]Your tabular data file is :[/cyan] [bold green]{choix_data}[/bold green]"
+                        f"[cyan]Your tabular data file is :[/cyan] [bold green]{selected_name}[/bold green]"
                     )
-                    document_data = os.path.join(wd_experience, choix_data)
-                    return wd_experience, choix_dossier, document_miappe, document_data
+                    data_path = os.path.join(experiment_directory, selected_name)
+                    return experiment_directory, chosen_folder, miappe_path, data_path
         else:
             console.print("[bold red]Incorrect selection... :([/bold red]")
 
 
-def choix_dossier_datafile(wd_experience):
+def choose_datafile_directory(experiment_directory):
 
-    listedfiles = os.listdir(wd_experience)
-    nombre_fichiers = len(listedfiles)
+    listed_files = os.listdir(experiment_directory)
+    file_count = len(listed_files)
 
-    table_fichiers = Table(title="Files found !", header_style="bold magenta")
-    table_fichiers.add_column("Index", style="cyan")
-    table_fichiers.add_column("Nom", style="yellow")
-    for index, nom in enumerate(listedfiles):
-        table_fichiers.add_row(str(index), nom)
-    console.print(table_fichiers)
+    files_table = Table(title="Files found !", header_style="bold magenta")
+    files_table.add_column("Index", style="cyan")
+    files_table.add_column("Nom", style="yellow")
+    for index, name in enumerate(listed_files):
+        files_table.add_row(str(index), name)
+    console.print(files_table)
 
     while True:
-        choix_temp = IntPrompt.ask(
-            f"[green]Please chose the folder containing the pictures you want to upload (0-{nombre_fichiers - 1})[/green]"
+        selection = IntPrompt.ask(
+            f"[green]Please chose the folder containing the pictures you want to upload (0-{file_count - 1})[/green]"
         )
-        if 0 <= choix_temp < nombre_fichiers:
-            choix_data = listedfiles[choix_temp]
+        if 0 <= selection < file_count:
+            selected_name = listed_files[selection]
             console.print(
-                f"[cyan]The folder is :[/cyan] [bold green]{choix_data}[/bold green]"
+                f"[cyan]The folder is :[/cyan] [bold green]{selected_name}[/bold green]"
             )
-            repertoire_photos = os.path.join(wd_experience, choix_data)
+            photos_directory = os.path.join(experiment_directory, selected_name)
 
-            return wd_experience, repertoire_photos
+            return experiment_directory, photos_directory
         else:
             console.print("[bold red]Incorrect selection... :([/bold red]")
 
 
-def change_tabular_data(wd_experience):
+def change_tabular_data(experiment_directory):
 
-    listedfiles = os.listdir(wd_experience)
-    nombre_fichiers = len(listedfiles)
+    listed_files = os.listdir(experiment_directory)
+    file_count = len(listed_files)
 
-    table_fichiers = Table(title="Files found !", header_style="bold magenta")
-    table_fichiers.add_column("Index", style="cyan")
-    table_fichiers.add_column("Nom", style="yellow")
-    for index, nom in enumerate(listedfiles):
-        table_fichiers.add_row(str(index), nom)
-    console.print(table_fichiers)
+    files_table = Table(title="Files found !", header_style="bold magenta")
+    files_table.add_column("Index", style="cyan")
+    files_table.add_column("Nom", style="yellow")
+    for index, name in enumerate(listed_files):
+        files_table.add_row(str(index), name)
+    console.print(files_table)
     while True:
-        choix_temp = IntPrompt.ask(
-            f"[green]Please chose the tabular data file (0-{nombre_fichiers - 1})[/green]"
+        selection = IntPrompt.ask(
+            f"[green]Please chose the tabular data file (0-{file_count - 1})[/green]"
         )
-        if 0 <= choix_temp < nombre_fichiers:
-            choix_data = listedfiles[choix_temp]
+        if 0 <= selection < file_count:
+            selected_name = listed_files[selection]
             console.print(
-                f"[cyan]Your tabular data file is :[/cyan] [bold green]{choix_data}[/bold green]"
+                f"[cyan]Your tabular data file is :[/cyan] [bold green]{selected_name}[/bold green]"
             )
-            document_data = os.path.join(wd_experience, choix_data)
+            data_path = os.path.join(experiment_directory, selected_name)
             break
-    console.print(table_fichiers)
+    console.print(files_table)
 
     while True:
-        choix_temp = IntPrompt.ask(
-            f"[green]Please chose the folder containing the pictures you want to upload (0-{nombre_fichiers - 1})[/green]"
+        selection = IntPrompt.ask(
+            f"[green]Please chose the folder containing the pictures you want to upload (0-{file_count - 1})[/green]"
         )
-        if 0 <= choix_temp < nombre_fichiers:
-            choix_data = listedfiles[choix_temp]
+        if 0 <= selection < file_count:
+            selected_name = listed_files[selection]
             console.print(
-                f"[cyan]The folder is :[/cyan] [bold green]{choix_data}[/bold green]"
+                f"[cyan]The folder is :[/cyan] [bold green]{selected_name}[/bold green]"
             )
-            repertoire_photos = os.path.join(wd_experience, choix_data)
+            photos_directory = os.path.join(experiment_directory, selected_name)
 
-            return wd_experience, document_data, repertoire_photos
+            return experiment_directory, data_path, photos_directory
         else:
             console.print("[bold red]Incorrect selection... :([/bold red]")
 
@@ -261,10 +261,10 @@ def show_data_panel(panel_name, exp_data, names_to_attribute_map):
     )
 
 
-def show_data_table_dictionnaire(table_name, dictionnaire):
+def show_data_table_dictionary(table_name, dictionary):
     table = Table(title=f"{table_name}", show_header=False)
     table.add_column("Index", style="cyan")
     table.add_column("Nom", style="green")
-    for i in dictionnaire:
-        table.add_row(i, dictionnaire[i])
+    for i in dictionary:
+        table.add_row(i, dictionary[i])
     console.print(table)

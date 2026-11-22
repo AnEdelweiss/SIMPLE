@@ -7,14 +7,14 @@ import urllib3
 
 from simple.auth import (
     check_connection_internet,
-    connexion,
-    deconnexion,
+    connect,
     get_login,
     is_connected,
+    logout,
 )
 
 # Assure-toi d'adapter les imports à l'arborescence exacte de ton projet
-from simple.erreurs import AuthenticationError, NetworkError
+from simple.errors import AuthenticationError, NetworkError
 
 
 class TestAuth:
@@ -34,7 +34,7 @@ class TestAuth:
     def test_check_connection_internet_failure(self, mock_get):
         """Teste qu'une erreur réseau lève bien la NetworkError personnalisée"""
         # On simule un timeout ou une coupure réseau
-        mock_get.side_effect = requests.ConnectionError("Pas de connexion")
+        mock_get.side_effect = requests.ConnectionError("Pas de connect")
 
         with pytest.raises(NetworkError) as error_info:
             check_connection_internet()
@@ -64,12 +64,12 @@ class TestAuth:
     # ==========================================
 
     @patch("simple.auth.silex.AuthenticationApi")
-    def test_deconnexion_success(self, MockAuthApi):
+    def test_logout_success(self, MockAuthApi):
         """Logout is really called and the token is removed"""
         mock_client = MagicMock()
         mock_client.default_headers = {"Authorization": "Bearer token123"}
 
-        result = deconnexion(mock_client)
+        result = logout(mock_client)
 
         assert result is True
         MockAuthApi.assert_called_once_with(mock_client)
@@ -77,7 +77,7 @@ class TestAuth:
         assert "Authorization" not in mock_client.default_headers
 
     @patch("simple.auth.silex.AuthenticationApi")
-    def test_deconnexion_empty_body_counts_as_success(self, MockAuthApi):
+    def test_logout_empty_body_counts_as_success(self, MockAuthApi):
         """Client fails to parse the server's empty logout reply: still a success,
         and the temporary Accept header must not leak."""
         import json
@@ -92,12 +92,12 @@ class TestAuth:
 
         MockAuthApi.return_value.logout.side_effect = fake_logout
 
-        assert deconnexion(mock_client) is True
+        assert logout(mock_client) is True
         assert seen["accept"] == "application/json"
         assert mock_client.default_headers == {}
 
     @patch("simple.auth.silex.AuthenticationApi")
-    def test_deconnexion_failure(self, MockAuthApi):
+    def test_logout_failure(self, MockAuthApi):
         """Server error: no exception, header still removed, returns False"""
         mock_client = MagicMock()
         mock_client.default_headers = {"Authorization": "Bearer token123"}
@@ -105,38 +105,38 @@ class TestAuth:
             status=500, reason="Server error"
         )
 
-        result = deconnexion(mock_client)
+        result = logout(mock_client)
 
         assert result is False
         assert "Authorization" not in mock_client.default_headers
 
     @patch("simple.auth.silex.AuthenticationApi")
-    def test_deconnexion_network_error(self, MockAuthApi):
+    def test_logout_network_error(self, MockAuthApi):
         mock_client = MagicMock()
         mock_client.default_headers = {"Authorization": "Bearer token123"}
         MockAuthApi.return_value.logout.side_effect = urllib3.exceptions.MaxRetryError(
             None, "/security/logout"
         )
 
-        assert deconnexion(mock_client) is False
+        assert logout(mock_client) is False
         assert "Authorization" not in mock_client.default_headers
 
     @patch("simple.auth.silex.AuthenticationApi")
-    def test_deconnexion_no_header(self, MockAuthApi):
+    def test_logout_no_header(self, MockAuthApi):
         """No token: nothing to do, no server call"""
         mock_client = MagicMock()
         mock_client.default_headers = {}
 
-        assert deconnexion(mock_client) is True
+        assert logout(mock_client) is True
         MockAuthApi.return_value.logout.assert_not_called()
 
     # ==========================================
     # TESTS POUR CONNEXION
     # ==========================================
 
-    @patch("simple.auth.deconnexion")
-    def test_connexion_success(self, mock_deconnexion):
-        """Teste que la connexion appelle bien le SDK avec les bons paramètres"""
+    @patch("simple.auth.logout")
+    def test_connect_success(self, mock_logout):
+        """Teste que la connect appelle bien le SDK avec les bons paramètres"""
         mock_client = MagicMock()
         login_dict = {
             "host": "https://fake.url",
@@ -144,16 +144,16 @@ class TestAuth:
             "password": "pwd",
         }
 
-        result = connexion(login_dict, mock_client)
+        result = connect(login_dict, mock_client)
 
         assert result is True
         # Vérifie qu'on a bien déconnecté d'abord
-        mock_deconnexion.assert_called_once_with(mock_client)
-        # Vérifie qu'on passe bien le dictionnaire déballé (**)
+        mock_logout.assert_called_once_with(mock_client)
+        # Vérifie qu'on passe bien le dictionary déballé (**)
         mock_client.connect_to_opensilex_ws.assert_called_once_with(**login_dict)
 
-    @patch("simple.auth.deconnexion")
-    def test_connexion_api_error_json(self, mock_deconnexion):
+    @patch("simple.auth.logout")
+    def test_connect_api_error_json(self, mock_logout):
         """Teste l'extraction du message d'erreur JSON renvoyé par OpenSilex"""
         mock_client = MagicMock()
         login_dict = {"host": "https://fake.url"}
@@ -163,7 +163,7 @@ class TestAuth:
         mock_client.connect_to_opensilex_ws.side_effect = Exception(faux_message_erreur)
 
         with pytest.raises(AuthenticationError) as error_info:
-            connexion(login_dict, mock_client)
+            connect(login_dict, mock_client)
 
         # On vérifie que notre fonction a bien décortiqué le JSON pour extraire le vrai message
         assert "Invalid credentials provided" in str(error_info.value)
@@ -187,8 +187,8 @@ class TestAuth:
 
         return fake_connect
 
-    @patch("simple.auth.deconnexion")
-    def test_connexion_api_error_body_json(self, mock_deconnexion):
+    @patch("simple.auth.logout")
+    def test_connect_api_error_body_json(self, mock_logout):
         """The JSON body attached to ApiException is parsed into the message."""
         mock_client = MagicMock()
         mock_client.connect_to_opensilex_ws.side_effect = (
@@ -198,15 +198,15 @@ class TestAuth:
         )
 
         with pytest.raises(AuthenticationError) as error_info:
-            connexion({"host": "https://fake.url"}, mock_client)
+            connect({"host": "https://fake.url"}, mock_client)
 
         assert (
             str(error_info.value)
             == "User authentication failed :Invalid credentials provided"
         )
 
-    @patch("simple.auth.deconnexion")
-    def test_connexion_api_error_unparsable_body(self, mock_deconnexion):
+    @patch("simple.auth.logout")
+    def test_connect_api_error_unparsable_body(self, mock_logout):
         """A non-JSON body keeps the historical 'impossible to decode' message."""
         mock_client = MagicMock()
         mock_client.connect_to_opensilex_ws.side_effect = (
@@ -214,12 +214,12 @@ class TestAuth:
         )
 
         with pytest.raises(AuthenticationError) as error_info:
-            connexion({"host": "https://fake.url"}, mock_client)
+            connect({"host": "https://fake.url"}, mock_client)
 
         assert str(error_info.value).startswith("error is impossible to decode :")
 
-    @patch("simple.auth.deconnexion")
-    def test_connexion_api_error_body_without_message(self, mock_deconnexion):
+    @patch("simple.auth.logout")
+    def test_connect_api_error_body_without_message(self, mock_logout):
         """A JSON body missing result.message is also 'impossible to decode'."""
         mock_client = MagicMock()
         mock_client.connect_to_opensilex_ws.side_effect = (
@@ -227,12 +227,12 @@ class TestAuth:
         )
 
         with pytest.raises(AuthenticationError) as error_info:
-            connexion({"host": "https://fake.url"}, mock_client)
+            connect({"host": "https://fake.url"}, mock_client)
 
         assert str(error_info.value).startswith("error is impossible to decode :")
 
-    @patch("simple.auth.deconnexion")
-    def test_connexion_api_error_without_body_keeps_raw_text(self, mock_deconnexion):
+    @patch("simple.auth.logout")
+    def test_connect_api_error_without_body_keeps_raw_text(self, mock_logout):
         """No body: fall back to the raw exception text, as before."""
         mock_client = MagicMock()
         mock_client.connect_to_opensilex_ws.side_effect = (
@@ -240,12 +240,12 @@ class TestAuth:
         )
 
         with pytest.raises(AuthenticationError) as error_info:
-            connexion({"host": "https://fake.url"}, mock_client)
+            connect({"host": "https://fake.url"}, mock_client)
 
         assert str(error_info.value).startswith("error : User authentication failed :")
 
-    @patch("simple.auth.deconnexion")
-    def test_connexion_direct_api_exception(self, mock_deconnexion):
+    @patch("simple.auth.logout")
+    def test_connect_direct_api_exception(self, mock_logout):
         """A direct ApiException (future client) is handled too."""
         mock_client = MagicMock()
         api_exc = silex.rest.ApiException(status=401, reason="Unauthorized")
@@ -253,12 +253,12 @@ class TestAuth:
         mock_client.connect_to_opensilex_ws.side_effect = api_exc
 
         with pytest.raises(AuthenticationError) as error_info:
-            connexion({"host": "https://fake.url"}, mock_client)
+            connect({"host": "https://fake.url"}, mock_client)
 
         assert "Invalid credentials provided" in str(error_info.value)
 
-    @patch("simple.auth.deconnexion")
-    def test_connexion_network_error(self, mock_deconnexion):
+    @patch("simple.auth.logout")
+    def test_connect_network_error(self, mock_logout):
         """Network failures are reported with the historical raw-text message."""
         mock_client = MagicMock()
         mock_client.connect_to_opensilex_ws.side_effect = (
@@ -266,7 +266,7 @@ class TestAuth:
         )
 
         with pytest.raises(AuthenticationError) as error_info:
-            connexion({"host": "https://fake.url"}, mock_client)
+            connect({"host": "https://fake.url"}, mock_client)
 
         assert str(error_info.value).startswith("error : User authentication failed :")
 
@@ -277,11 +277,11 @@ class TestAuth:
     @patch("simple.auth.Prompt.ask")
     @patch("simple.auth.IntPrompt.ask")
     def test_get_login(self, mock_int_ask, mock_ask):
-        """Teste la collecte des informations de connexion via Rich"""
+        """Teste la collecte des informations de connect via Rich"""
         # On simule l'utilisateur qui tape '1' (UH)
         mock_int_ask.return_value = 1
 
-        # side_effect permet de donner les réponses successives : d'abord le nom, puis le mot de passe
+        # side_effect permet de donner les réponses successives : d'abord le name, puis le mot de passe
         mock_ask.side_effect = ["mon_adresse@mail.com", "mon_mot_de_passe_secret"]
 
         login_dict = get_login()

@@ -8,7 +8,7 @@ tabular data files is looked up on disk.
 import os
 
 from simple.datafile_import import check_for_datafiles
-from simple.erreurs import DataImportError
+from simple.errors import DataImportError
 from simple.validation import validate_miappe_template
 
 

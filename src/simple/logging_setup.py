@@ -12,13 +12,13 @@ _FILE_FORMAT = logging.Formatter(
 
 def _next_log_file(log_dir):
     """Return the path of the next unused per-day log file in ``log_dir``."""
-    date_du_jour = datetime.datetime.now().strftime("%Y-%m-%d")
-    compteur = 1
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    counter = 1
     while True:
-        path = os.path.join(log_dir, f"simple_app_{date_du_jour}_{compteur}.log")
+        path = os.path.join(log_dir, f"simple_app_{today}_{counter}.log")
         if not os.path.exists(path):
             return path
-        compteur += 1
+        counter += 1
 
 
 def _resolve_log_dir():
@@ -42,7 +42,7 @@ def _resolve_log_dir():
 class _LazyFileHandler(logging.Handler):
     """Create the real FileHandler only on the first log record.
 
-    ``systeme_logs`` is imported by every module, so opening the log file at
+    ``logging_setup`` is imported by every module, so opening the log file at
     import time made ``import simple.auth`` raise PermissionError from any
     read-only location (system installs, containers, zipapps). The handler is
     installed lazily and picks the first writable directory instead.

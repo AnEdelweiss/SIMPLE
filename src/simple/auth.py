@@ -4,8 +4,8 @@ import opensilexClientToolsPython as silex
 import requests
 import urllib3
 
-from simple.erreurs import AuthenticationError, NetworkError
-from simple.systeme_logs import logger
+from simple.errors import AuthenticationError, NetworkError
+from simple.logging_setup import logger
 from simple.ui import IntPrompt, Prompt, Table, console
 
 # Initiatialisation des différentes instances
@@ -19,27 +19,27 @@ INSTANCES = {
 def get_login():
     console.print("[cyan]Connection :[/cyan]")
     login = {}
-    liste_url = list(INSTANCES.keys())
-    liste_instances = list(INSTANCES.values())
+    instance_urls = list(INSTANCES.keys())
+    instance_names = list(INSTANCES.values())
 
     table = Table(title="Available instances", show_header=False)
     table.add_column("Index", style="cyan")
     table.add_column("Name", style="green")
-    for index, nom in enumerate(liste_instances):
-        table.add_row(str(index), nom)
+    for index, name in enumerate(instance_names):
+        table.add_row(str(index), name)
     console.print(table)
     while True:
-        temp_Inst = IntPrompt.ask(
-            f"[green]\\[+][/green][cyan]On which instance would you like to log in (0-{len(liste_instances) - 1})[/cyan]"
+        instance_index = IntPrompt.ask(
+            f"[green]\\[+][/green][cyan]On which instance would you like to log in (0-{len(instance_names) - 1})[/cyan]"
         )
-        if 0 <= temp_Inst <= len(liste_instances) - 1:
-            login["host"] = liste_url[temp_Inst]
+        if 0 <= instance_index <= len(instance_names) - 1:
+            login["host"] = instance_urls[instance_index]
             break
         else:
             console.print(
-                f"[red][bold]Please type a number between [white]0[/white] and [white]{len(liste_instances) - 1}[/white][/red][/bold]"
+                f"[red][bold]Please type a number between [white]0[/white] and [white]{len(instance_names) - 1}[/white][/red][/bold]"
             )
-    if temp_Inst == 0:
+    if instance_index == 0:
         login["identifier"] = "guest@opensilex.org"
         login["password"] = "guest"
     else:
@@ -53,16 +53,16 @@ def get_login():
     return login
 
 
-# On deconnecte le client avant toute nouvelle connexion
-def deconnexion(silex_API_Client) -> bool:
+# On deconnecte le client avant toute nouvelle connect
+def logout(api_client) -> bool:
     """Logout from the server and always clear the local auth header.
 
     Returns True if there was no token or the server logout succeeded, False
     if the server logout failed (API error, network error, timeout). The local
     "Authorization" header is removed in every case and no exception is raised,
-    so callers (e.g. connexion) can proceed regardless of the return value.
+    so callers (e.g. connect) can proceed regardless of the return value.
     """
-    headers = silex_API_Client.default_headers
+    headers = api_client.default_headers
     if "Authorization" not in headers:
         return True
     # The generated client's logout() crashes client-side with KeyError('Accept')
@@ -73,7 +73,7 @@ def deconnexion(silex_API_Client) -> bool:
     if added_accept:
         headers["Accept"] = "application/json"
     try:
-        silex.AuthenticationApi(silex_API_Client).logout(_request_timeout=10)
+        silex.AuthenticationApi(api_client).logout(_request_timeout=10)
         return True
     except json.JSONDecodeError:
         return True
@@ -107,11 +107,11 @@ def check_connection_internet():
             raise NetworkError("No internet access :/")
 
 
-# Check rapide de la connexion
-def is_connected(silex_API_Client) -> bool:
+# Check rapide de la connect
+def is_connected(api_client) -> bool:
     return (
-        silex_API_Client is not None
-        and "Authorization" in silex_API_Client.default_headers
+        api_client is not None
+        and "Authorization" in api_client.default_headers
     )
 
 
@@ -140,11 +140,11 @@ def _authentication_error_from_api(
     return AuthenticationError(message)
 
 
-# Connexion et gestion des erreurs de connexion
-def connexion(login, silex_API_Client) -> bool:
-    deconnexion(silex_API_Client)
+# Connexion et gestion des erreurs de connect
+def connect(login, api_client) -> bool:
+    logout(api_client)
     try:
-        silex_API_Client.connect_to_opensilex_ws(
+        api_client.connect_to_opensilex_ws(
             **login
         )  # Connexion avec le login reçu via la CLI
         logger.info(f"User Sucessfully connected to : {login["host"]}")

@@ -4,7 +4,7 @@ class SimpleBaseException(Exception):
 
 
 class NetworkError(SimpleBaseException):
-    """Levée quand la connexion internet ou l'API échoue."""
+    """Levée quand la connect internet ou l'API échoue."""
 
 
 

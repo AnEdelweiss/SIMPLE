@@ -9,10 +9,10 @@ import urllib3
 from lxml import etree as ET
 
 from simple.__init__ import __version__
-from simple.auth import connexion
+from simple.auth import connect
 from simple.data_import import find_datafile_config, format_timestamps
-from simple.erreurs import DataImportError, SimpleBaseException
-from simple.systeme_logs import logger
+from simple.errors import DataImportError, SimpleBaseException
+from simple.logging_setup import logger
 
 # A single datafile upload failure must not abort the whole batch: these are
 # the errors the upload call itself can realistically raise (API/network,
@@ -27,36 +27,36 @@ DATAFILE_UPLOAD_ERRORS = (
 )
 
 
-def get_round_protocol_info(wd_experience, document_data):
+def get_round_protocol_info(experiment_directory, data_path):
     # Get RoundProtocol Infos
     plant_mask = {}
     cam_pos = {}
-    Round_folder = os.path.join(wd_experience, "00-RoundProtocol")
+    round_folder = os.path.join(experiment_directory, "00-RoundProtocol")
 
-    if os.path.isdir(Round_folder):
-        Round_files = []
-        for root, dirs, files in os.walk(Round_folder):
+    if os.path.isdir(round_folder):
+        round_file_paths = []
+        for root, dirs, files in os.walk(round_folder):
             for name in files:
-                Round_files.append(os.path.join(root, name))
+                round_file_paths.append(os.path.join(root, name))
 
-        Exp_Rd_Dict = {}
-        for wd_round in Round_files:
-            filename = os.path.basename(wd_round).replace(".txt", "")
-            Exp_Rd_ls = filename.split("-")
-            Exp_Rd_Dict.update(
+        round_file_map = {}
+        for round_file in round_file_paths:
+            filename = os.path.basename(round_file).replace(".txt", "")
+            filename_parts = filename.split("-")
+            round_file_map.update(
                 {
-                    wd_round: {
-                        "Experiment": Exp_Rd_ls[1],
-                        "Round": (Exp_Rd_ls[2][0:3]).replace("_", ""),
+                    round_file: {
+                        "Experiment": filename_parts[1],
+                        "Round": (filename_parts[2][0:3]).replace("_", ""),
                     }
                 }
             )
 
         # Create Dictionary for all parameters
-        df_data = pd.read_excel(document_data)
+        df_data = pd.read_excel(data_path)
         PID = df_data["PID"].unique()[0]
         # Transform RoundProtocol to xml
-        for key, value in Exp_Rd_Dict.items():
+        for key, value in round_file_map.items():
             try:
                 with open(key, encoding="utf-16") as file:
                     xml_str = file.read().replace("\x00", "")
@@ -161,14 +161,14 @@ def get_existing_datafiles(dat_api, prov_uri, exp_uri):
     }
 
 
-def check_for_datafiles(document_data, repertoire_photos):
+def check_for_datafiles(data_path, photos_directory):
     # Liste des datafiles
     ls_files_dict = {}
-    for root, dirs, files in os.walk(repertoire_photos):
+    for root, dirs, files in os.walk(photos_directory):
         for filename in files:
             ls_files_dict[filename] = os.path.join(root, filename)
 
-    df_data = pd.read_excel(document_data)
+    df_data = pd.read_excel(data_path)
     # traitement des datafiles1
     dict_datafile1 = {}
     missing_datafile1 = set()
@@ -207,8 +207,8 @@ def check_for_datafiles(document_data, repertoire_photos):
 
 
 def execute_datafiles_upload(
-    document_miappe,
-    document_data,
+    miappe_path,
+    data_path,
     df_data,
     dict_datafile1,
     dict_datafile2,
@@ -219,20 +219,20 @@ def execute_datafiles_upload(
     cam_pos,
     plant_mask,
     login,
-    silex_API_Client,
+    api_client,
     status_callback=None,
     progress_callback=None,
 ):
 
-    connexion(login, silex_API_Client)
-    dataframe = pd.read_excel(document_miappe, sheet_name="experiment", header=1)
+    connect(login, api_client)
+    dataframe = pd.read_excel(miappe_path, sheet_name="experiment", header=1)
     dataframe.drop(
         dataframe.columns[dataframe.columns.str.contains("unnamed", case=False)],
         axis=1,
         inplace=True,
     )
     name_exp = dataframe["name"].dropna().iloc[0]
-    exp_search = silex.ExperimentsApi(silex_API_Client).search_experiments(
+    exp_search = silex.ExperimentsApi(api_client).search_experiments(
         name=name_exp
     )["result"]
     exp_uri = exp_search[0].uri
@@ -264,12 +264,12 @@ def execute_datafiles_upload(
             "No angle data was found in the tabular data. It is not a problem, if it is intentional."
         )
 
-    dat_api = silex.DataApi(silex_API_Client)
+    dat_api = silex.DataApi(api_client)
     provenance_datafile1 = None
     provenance_datafile2 = None
     rdf_type_1 = None
     rdf_type_2 = None
-    config = find_datafile_config(datafile_provenance, document_data)
+    config = find_datafile_config(datafile_provenance, data_path)
     if config is not None:
         val1 = config.get("prov_datafiles1")
         rdf1 = config.get("rdf_type_datafile1")
@@ -406,7 +406,7 @@ def execute_datafiles_upload(
         futures = [executor.submit(process_datafile1, img) for img in corr_to_upload]
         for future in concurrent.futures.as_completed(futures):
             if datetime.datetime.now() > timelimit:
-                connexion(login, silex_API_Client)
+                connect(login, api_client)
                 timelimit = datetime.datetime.now() + datetime.timedelta(minutes=30)
 
             try:
@@ -418,7 +418,7 @@ def execute_datafiles_upload(
                         "[bold yellow] [!] A datafile failed to upload, please check the logs for informations, continuing...[/bold yellow]"
                     )
             if progress_callback:
-                progress_callback(nom_tache_datafile1, avance=1)
+                progress_callback(nom_tache_datafile1, advance=1)
 
     if len(corr_to_upload) > 0:
         if status_callback:
@@ -545,7 +545,7 @@ def execute_datafiles_upload(
             ]
             for future in concurrent.futures.as_completed(futures):
                 if datetime.datetime.now() > timelimit:
-                    connexion(login, silex_API_Client)
+                    connect(login, api_client)
                     timelimit = datetime.datetime.now() + datetime.timedelta(minutes=30)
                 try:
                     future.result()
@@ -557,7 +557,7 @@ def execute_datafiles_upload(
                         )
 
                 if progress_callback:
-                    progress_callback(nom_tache_datafile2, avance=1)
+                    progress_callback(nom_tache_datafile2, advance=1)
 
         if len(mask_to_upload) > 0:
             if status_callback:

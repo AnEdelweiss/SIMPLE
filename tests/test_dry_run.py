@@ -3,7 +3,7 @@ import shutil
 import pytest
 
 from simple.dry_run import dry_run
-from simple.erreurs import DataImportError
+from simple.errors import DataImportError
 
 DUMMY = "exp_database/dummy_experiment"
 
