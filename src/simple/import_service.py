@@ -32,6 +32,7 @@ from simple.datafile_import import (
 )
 from simple.errors import SimpleBaseException
 from simple.logging_setup import logger
+from simple.upload import UploadSummary
 
 PHASE_CHECKING_VARIABLE_MAP = "checking_variable_map"
 PHASE_CHECKING_PROVENANCES = "checking_provenances"
@@ -70,6 +71,7 @@ class TabularImportResult:
     datafile_provenance: dict
     sci_obj_uri: dict
     created_sci_obj: int
+    upload_summary: UploadSummary
 
     @property
     def found_sci_obj(self):
@@ -188,7 +190,7 @@ def run_tabular_import(
 
     try:
         with _status(status_factory, PHASE_UPLOADING_DATA):
-            create_data(
+            upload_summary = create_data(
                 data_path,
                 miappe_path,
                 login,
@@ -209,6 +211,7 @@ def run_tabular_import(
         datafile_provenance=datafile_provenance,
         sci_obj_uri=sci_obj_uri,
         created_sci_obj=created_sci_obj,
+        upload_summary=upload_summary,
     )
 
 
@@ -318,9 +321,12 @@ def upload_datafiles(
     status_callback=None,
     progress_callback=None,
 ):
-    """Upload the datafiles described by a :func:`plan_datafiles_import` plan."""
+    """Upload the datafiles described by a :func:`plan_datafiles_import` plan.
+
+    Returns the created/failed/skipped :class:`UploadSummary`.
+    """
     try:
-        execute_datafiles_upload(
+        summary = execute_datafiles_upload(
             miappe_path,
             data_path,
             plan.df_data,
@@ -342,7 +348,7 @@ def upload_datafiles(
         raise SimpleBaseException(
             "An error occurred during datafile upload. Please see the logs for more information."
         )
-    return plan
+    return summary
 
 
 def run_datafiles_import(

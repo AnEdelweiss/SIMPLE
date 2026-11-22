@@ -13,6 +13,7 @@ from simple.auth import connect
 from simple.data_import import find_datafile_config, format_timestamps
 from simple.errors import DataImportError, SimpleBaseException
 from simple.logging_setup import logger
+from simple.upload import UploadSummary, with_retry
 
 # A single datafile upload failure must not abort the whole batch: these are
 # the errors the upload call itself can realistically raise (API/network,
@@ -295,6 +296,7 @@ def execute_datafiles_upload(
             f"[green][✓] Provenance for datafile2 found : {provenance_datafile2}[/green]"
         )
 
+    summary = UploadSummary()
     # IMPORT DATAFILE 1
     corr_data = parse_excel_for_metadata(
         df_data, dict_datafile1, provenance_datafile1, "datafile1", timezone_exp
@@ -321,6 +323,7 @@ def execute_datafiles_upload(
         )
         not in existing_datafile1_keys
     ]
+    summary.skipped += len(corr_data) - len(corr_to_upload)
 
     # # ####TEST :
     # toutes_datafile1_triees = sorted(corr_data.values(), key=lambda x: x["Path"])
@@ -376,34 +379,42 @@ def execute_datafiles_upload(
             },
         }
         if path_ou_post == 1:
-            dat_api.post_data_file_paths(
-                body=[
-                    silex.DataFilePathCreationDTO(
-                        rdf_type=f"vocabulary:{rdf_type_1}",
-                        _date=img["Date"],
-                        target=sci_obj_uri[img["Plant ID"]],
-                        metadata={
-                            "Round Order": round_order,
-                            "Imported with": f"SIMPLE {__version__}",
-                        },
-                        provenance={
-                            "uri": img["Prov"],
-                            "settings": settings_dict,
-                            "experiments": [exp_uri],
-                        },
-                        relative_path="datafile/" + os.path.basename(img["Path"]),
-                    )
-                ]
+            with_retry(
+                lambda: dat_api.post_data_file_paths(
+                    body=[
+                        silex.DataFilePathCreationDTO(
+                            rdf_type=f"vocabulary:{rdf_type_1}",
+                            _date=img["Date"],
+                            target=sci_obj_uri[img["Plant ID"]],
+                            metadata={
+                                "Round Order": round_order,
+                                "Imported with": f"SIMPLE {__version__}",
+                            },
+                            provenance={
+                                "uri": img["Prov"],
+                                "settings": settings_dict,
+                                "experiments": [exp_uri],
+                            },
+                            relative_path="datafile/" + os.path.basename(img["Path"]),
+                        )
+                    ]
+                )
             )
         else:
-            dat_api.post_data_file(description=json.dumps(desc), file=img["Path"])
+            with_retry(
+                lambda: dat_api.post_data_file(
+                    description=json.dumps(desc), file=img["Path"]
+                )
+            )
 
     nom_tache_datafile1 = "[bold blue]Uploading datafiles 1...[/bold blue]"
     if progress_callback and len(corr_to_upload) > 0:
         progress_callback(nom_tache_datafile1, total=len(corr_to_upload))
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        futures = [executor.submit(process_datafile1, img) for img in corr_to_upload]
+        futures = {
+            executor.submit(process_datafile1, img): img for img in corr_to_upload
+        }
         for future in concurrent.futures.as_completed(futures):
             if datetime.datetime.now() > timelimit:
                 connect(login, api_client)
@@ -411,7 +422,10 @@ def execute_datafiles_upload(
 
             try:
                 future.result()
+                summary.created += 1
             except DATAFILE_UPLOAD_ERRORS as e:
+                summary.failed += 1
+                summary.failed_items.append(futures[future]["Path"])
                 logger.error(f"failed to upload image :{e} ")
                 if status_callback:
                     status_callback(
@@ -481,6 +495,7 @@ def execute_datafiles_upload(
             not in existing_datafile2_keys
         ]
 
+        summary.skipped += len(mask_data) - len(mask_to_upload)
         # # # TEST TEST TEST
         # toutes_datafile2_triees = sorted(mask_data.values(), key=lambda x: x["Path"])
 
@@ -532,7 +547,11 @@ def execute_datafiles_upload(
                     "experiments": [exp_uri],
                 },
             }
-            dat_api.post_data_file(description=json.dumps(desc), file=img["Path"])
+            with_retry(
+                lambda: dat_api.post_data_file(
+                    description=json.dumps(desc), file=img["Path"]
+                )
+            )
 
         nom_tache_datafile2 = "[bold blue]Uploading datafiles 2...[/bold blue]"
 
@@ -540,16 +559,19 @@ def execute_datafiles_upload(
             progress_callback(nom_tache_datafile2, total=len(mask_to_upload))
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [
-                executor.submit(process_datafile2, img) for img in mask_to_upload
-            ]
+            futures = {
+                executor.submit(process_datafile2, img): img for img in mask_to_upload
+            }
             for future in concurrent.futures.as_completed(futures):
                 if datetime.datetime.now() > timelimit:
                     connect(login, api_client)
                     timelimit = datetime.datetime.now() + datetime.timedelta(minutes=30)
                 try:
                     future.result()
+                    summary.created += 1
                 except DATAFILE_UPLOAD_ERRORS as e:
+                    summary.failed += 1
+                    summary.failed_items.append(futures[future]["Path"])
                     logger.error(f"failed to upload image :{e} ")
                     if status_callback:
                         status_callback(
@@ -574,4 +596,5 @@ def execute_datafiles_upload(
             logger.info(
                 "[green][✓] All Datafiles 2 were already uploaded (or there was no datafiles2) [/green]"
             )
-    return 1
+    logger.info(f"Datafiles import complete: {summary.describe()}")
+    return summary

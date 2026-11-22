@@ -98,7 +98,9 @@ class TestExecuteDatafilesUpload:
             progress_callback=progress,
         )
 
-        assert result == 1
+        assert result.created == 0
+        assert result.failed == 0
+        assert result.skipped == 1
         # img_a already exists according to the mocked cache -> nothing posted.
         data_api.post_data_file.assert_not_called()
         progress.assert_not_called()
@@ -144,12 +146,13 @@ class TestExecuteDatafilesUpload:
             for call in status.call_args_list
         )
 
+    @patch("simple.upload.time.sleep")
     @patch("simple.datafile_import.connect")
     @patch("simple.datafile_import.get_existing_datafiles")
     @patch("simple.datafile_import.silex.DataApi")
     @patch("simple.datafile_import.silex.ExperimentsApi")
     def test_failed_upload_is_reported_and_batch_continues(
-        self, MockExpApi, MockDataApi, mock_existing, mock_connect, tmp_path
+        self, MockExpApi, MockDataApi, mock_existing, mock_connect, mock_sleep, tmp_path
     ):
         exp = MagicMock(uri="exp:1")
         MockExpApi.return_value.search_experiments.return_value = {"result": [exp]}

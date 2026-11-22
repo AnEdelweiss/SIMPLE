@@ -92,6 +92,18 @@ def _import_status(phase):
     return console.status(message, spinner=spinner)
 
 
+def _print_upload_summary(summary):
+    console.print(
+        f"[bold green]Created: {summary.created} | Failed: {summary.failed} | "
+        f"Already present: {summary.skipped}[/bold green]"
+    )
+    for item in summary.failed_items[:10]:
+        console.print(f"[red]  failed: {item}[/red]")
+    remaining = len(summary.failed_items) - 10
+    if remaining > 0:
+        console.print(f"[red]  ... and {remaining} more failed item(s)[/red]")
+
+
 def ui_find_experiment(api_client):
     name_exp = Prompt.ask("[cyan]What experiment are you looking for?[/cyan]")
 
@@ -268,7 +280,7 @@ def ui_import_data(data_path, miappe_path, login, api_client):
                 f"[dim white] ↳ Ignored : Data for {variable_name} were already uploaded.[/dim white]"
             )
 
-    run_tabular_import(
+    result = run_tabular_import(
         data_path,
         miappe_path,
         login,
@@ -282,6 +294,7 @@ def ui_import_data(data_path, miappe_path, login, api_client):
     )
 
     console.print("[bold green]Data Import Over![/bold green]")
+    _print_upload_summary(result.upload_summary)
 
 
 def ui_import_datafiles(
@@ -416,7 +429,7 @@ def ui_import_datafiles(
             if advance > 0:
                 progress_bar.advance(active_tasks[task_name], advance=advance)
 
-        upload_datafiles(
+        summary = upload_datafiles(
             plan,
             miappe_path,
             data_path,
@@ -425,9 +438,15 @@ def ui_import_datafiles(
             status_callback=show_status,
             progress_callback=update_progress_bar,
         )
-        progress_bar.console.print(
-            "[bold green][✓] Succeeded in importing all datafiles ![/bold green]"
-        )
+        if summary.failed:
+            progress_bar.console.print(
+                f"[bold yellow][!] {summary.failed} datafile(s) failed to upload.[/bold yellow]"
+            )
+        else:
+            progress_bar.console.print(
+                "[bold green][✓] Succeeded in importing all datafiles ![/bold green]"
+            )
+        _print_upload_summary(summary)
 
 
 def main():

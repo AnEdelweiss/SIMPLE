@@ -403,7 +403,7 @@ class TestUploadDatafiles:
             progress_callback=progress,
         )
 
-        assert returned is plan
+        assert returned is mock_execute.return_value
         mock_execute.assert_called_once_with(
             "miappe.xlsx",
             "data.xlsx",

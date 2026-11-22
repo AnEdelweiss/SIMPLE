@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import opensilexClientToolsPython as silex
 import pandas as pd
 import pytest
 
@@ -267,7 +268,8 @@ class TestDataImport:
         )
 
         # 3. Assert
-        assert result is True
+        assert result.created == 2
+        assert result.failed == 0
         # Vérifie qu'on a bien appelé l'API pour ajouter des données
         assert mock_data_api_instance.add_list_data.called is True
 
@@ -578,3 +580,65 @@ def test_find_datafile_config_returns_none_without_match():
     from simple.data_import import find_datafile_config
 
     assert find_datafile_config({"other.xlsx": {}}, "/tmp/my_data.xlsx") is None
+
+
+@patch("simple.upload.time.sleep")
+@patch("simple.data_import.connect")
+@patch("simple.data_import.silex.DataApi")
+@patch("simple.data_import.silex.VariablesApi")
+@patch("simple.data_import.silex.ExperimentsApi")
+@patch("simple.data_import.pd.read_excel")
+@patch("simple.data_import.os.path.basename")
+def test_create_data_records_failed_batches(
+    mock_basename,
+    mock_read_excel,
+    MockExpApi,
+    MockVarApi,
+    MockDataApi,
+    mock_connect,
+    mock_sleep,
+):
+    df_miappe = pd.DataFrame({"name": ["Exp_Test"]})
+    df_data = pd.DataFrame(
+        {
+            "Plant ID": ["Plant_1"],
+            "timestamp": [pd.Timestamp("2023-01-01 10:00:00")],
+            "Angle": [45],
+            "Round Order": [1],
+            "Taille": [15.5],
+        }
+    )
+    mock_read_excel.side_effect = [df_miappe, df_data]
+    mock_basename.return_value = "dummy_data.xlsx"
+
+    mock_exp = MagicMock()
+    mock_exp.uri = "http://fake-uri.com/exp/1"
+    MockExpApi.return_value.search_experiments.return_value = {"result": [mock_exp]}
+
+    mock_var = MagicMock()
+    mock_var.uri = "http://fake-uri.com/var/taille"
+    MockVarApi.return_value.search_variables.return_value = {"result": [mock_var]}
+
+    data_api = MockDataApi.return_value
+    data_api.search_data_list.return_value = {"result": []}
+    data_api.get_data_file_descriptions_by_search.return_value = {"result": []}
+    data_api.add_list_data.side_effect = silex.rest.ApiException(
+        status=500, reason="boom"
+    )
+
+    result = create_data(
+        "dummy_data.xlsx",
+        "dummy_miappe.xlsx",
+        "test_user",
+        MagicMock(),
+        {"Taille": "var_taille"},
+        {"Prov_Test": "http://fake-uri.com/prov/1"},
+        {"dummy_data.xlsx": {"prov_morpho_parameters": "Prov_Test"}},
+        {"Plant_1": "http://fake-uri.com/so/1"},
+    )
+
+    assert result.created == 0
+    assert result.failed == 1
+    assert result.failed_items == ["var_taille rows 0-0"]
+    assert data_api.add_list_data.call_count == 3
+    assert mock_sleep.called

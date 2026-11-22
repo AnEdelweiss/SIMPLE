@@ -10,6 +10,7 @@ from simple.__init__ import __version__
 from simple.auth import connect
 from simple.errors import DataImportError
 from simple.logging_setup import logger
+from simple.upload import RETRYABLE_ERRORS, UploadSummary, with_retry
 
 
 def format_timestamps(series, timezone="UTC"):
@@ -646,6 +647,7 @@ def create_data(
     variables_api = silex.VariablesApi(api_client)
     # On recupère en une fois toutes les données tabulaires existantes pour la variable
     logfile = {}
+    summary = UploadSummary()
     for key, value in morpho_info.items():
         logfile[value] = []
         nom_colonne = key
@@ -676,6 +678,7 @@ def create_data(
 
                 # VERIFICATION DE L'EXISTENCE DES DONNÉES EN MÉMOIRE
                 if (target_uri, formatted_date, round_order_val) in existing_data_cache:
+                    summary.skipped += 1
                     logfile[value].append(
                         {
                             "Angle": row.get("Angle"),
@@ -725,9 +728,18 @@ def create_data(
                             minutes=30
                         )
             if bodies:
-                data_api.add_list_data(
-                    body=bodies,
-                )
+                try:
+                    with_retry(lambda: data_api.add_list_data(body=bodies))
+                except RETRYABLE_ERRORS as exc:
+                    logger.error(
+                        f"{len(bodies)} lines of data from {value} failed after retries: {exc}"
+                    )
+                    summary.failed += len(bodies)
+                    summary.failed_items.append(
+                        f"{value} rows {slc}-{slc + len(bodies) - 1}"
+                    )
+                    continue
+                summary.created += len(bodies)
                 logger.info(
                     f"{len(bodies)} lines of data from {value} were sucessfully uploaded."
                 )
@@ -738,5 +750,7 @@ def create_data(
                 if upload_progress:
                     upload_progress(value, 0)
 
-    logger.info("Data Import complete with sucess")
-    return True
+    logger.info(
+        f"Data Import complete: {summary.describe()}"
+    )
+    return summary

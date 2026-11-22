@@ -46,6 +46,7 @@ from simple.import_service import (
     upload_datafiles,
 )
 from simple.logging_setup import logger
+from simple.upload import UploadSummary
 
 
 # 1. The Signal Emitter (Safely crosses threads)
@@ -468,7 +469,7 @@ class SimpleGUI(QMainWindow):
                 safe_total = total if total is not None else 0
                 self.gui_progress_signal.emit(task_name, advance, safe_total)
 
-            run_datafiles_import(
+            return run_datafiles_import(
                 self.miappe_path,
                 self.data_path,
                 self.experiment_directory,
@@ -484,12 +485,14 @@ class SimpleGUI(QMainWindow):
                 progress_callback=update_progress_bar,
             )
 
-        # 3. Use a lambda for the missing success_callback
-        self.with_progress(
-            "Importing datafiles...",
-            task,
-            lambda r: QMessageBox.information(self, "Success", "Datafiles imported successfully.")
-        )
+        def finish(summary):
+            QMessageBox.information(
+                self,
+                "Success",
+                f"Datafiles imported successfully.\n{summary.describe()}",
+            )
+
+        self.with_progress("Importing datafiles...", task, finish)
 
     def do_import_data(self):
         def task():
@@ -510,7 +513,7 @@ class SimpleGUI(QMainWindow):
                     total_operations["value"],
                 )
 
-            run_tabular_import(
+            return run_tabular_import(
                 self.data_path,
                 self.miappe_path,
                 self.login_info,
@@ -520,12 +523,15 @@ class SimpleGUI(QMainWindow):
                 progress_callback=show_progress,
             )
 
-        # 3. Use a lambda for the missing success_callback
-        self.with_progress(
-            "Importing tabular data...",
-            task,
-            lambda r: QMessageBox.information(self, "Success", "Tabular data imported successfully.")
-        )
+        def finish(result):
+            QMessageBox.information(
+                self,
+                "Success",
+                f"Tabular data imported successfully.\n"
+                f"{result.upload_summary.describe()}",
+            )
+
+        self.with_progress("Importing tabular data...", task, finish)
 
     def do_run_all(self):
         # 1. Handle all UI Pop-ups in the main thread first
@@ -550,6 +556,8 @@ class SimpleGUI(QMainWindow):
 
         # 2. Create ONE master background task that runs everything sequentially
         def master_task():
+            summary = UploadSummary()
+
             # --- 1. Experiment ---
             self.gui_progress_signal.emit("Creating experiment", 0, 0)
             create_experiment(self.miappe_path, self.api_client, status_callback=self._status_callback)
@@ -588,14 +596,16 @@ class SimpleGUI(QMainWindow):
                 datafile_check=datafile_check,
                 sci_obj=(sci_obj_uri, created_sci_obj),
             )
-            upload_datafiles(
-                plan,
-                self.miappe_path,
-                self.data_path,
-                self.login_info,
-                self.api_client,
-                status_callback=self._status_callback,
-                progress_callback=update_datafile_progress_bar,
+            summary.merge(
+                upload_datafiles(
+                    plan,
+                    self.miappe_path,
+                    self.data_path,
+                    self.login_info,
+                    self.api_client,
+                    status_callback=self._status_callback,
+                    progress_callback=update_datafile_progress_bar,
+                )
             )
 
             # --- 6. Tabular Data ---
@@ -614,7 +624,7 @@ class SimpleGUI(QMainWindow):
                     total_operations["value"],
                 )
 
-            run_tabular_import(
+            tabular_result = run_tabular_import(
                 self.data_path,
                 self.miappe_path,
                 self.login_info,
@@ -625,12 +635,21 @@ class SimpleGUI(QMainWindow):
                 provenances=(plan.prov_dict, plan.datafile_provenance),
                 sci_obj=(sci_obj_uri, created_sci_obj),
             )
+            summary.merge(tabular_result.upload_summary)
+            return summary
 
         # 3. Fire up the single thread using the indeterminate loader we built earlier
+        def finish(summary):
+            QMessageBox.information(
+                self,
+                "Success",
+                f"All imports finished.\n{summary.describe()}",
+            )
+
         self.with_progress(
             "Starting batch import...",
             master_task,
-            lambda r: QMessageBox.information(self, "Success", "All imports finished successfully!"),
+            finish,
             indeterminate=True
         )
 
