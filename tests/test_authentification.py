@@ -168,6 +168,108 @@ class TestAuth:
         # On vérifie que notre fonction a bien décortiqué le JSON pour extraire le vrai message
         assert "Invalid credentials provided" in str(error_info.value)
 
+    @staticmethod
+    def _client_wrapped_api_error(body):
+        """Simulate the pinned client: ApiException re-raised as a plain Exception.
+
+        ``connect_to_opensilex_ws`` catches ``rest.ApiException`` and re-raises
+        ``Exception("Connection to OpenSilex failed: " + str(e))``; Python keeps
+        the original exception as ``__context__``. This reproduces that exactly.
+        """
+        api_exc = silex.rest.ApiException(status=401, reason="Unauthorized")
+        api_exc.body = body
+
+        def fake_connect(**kwargs):
+            try:
+                raise api_exc
+            except silex.rest.ApiException as e:
+                raise Exception("Connection to OpenSilex failed: " + str(e))
+
+        return fake_connect
+
+    @patch("simple.auth.deconnexion")
+    def test_connexion_api_error_body_json(self, mock_deconnexion):
+        """The JSON body attached to ApiException is parsed into the message."""
+        mock_client = MagicMock()
+        mock_client.connect_to_opensilex_ws.side_effect = (
+            self._client_wrapped_api_error(
+                '{"result": {"message": "Invalid credentials provided"}}'
+            )
+        )
+
+        with pytest.raises(AuthenticationError) as error_info:
+            connexion({"host": "https://fake.url"}, mock_client)
+
+        assert (
+            str(error_info.value)
+            == "User authentication failed :Invalid credentials provided"
+        )
+
+    @patch("simple.auth.deconnexion")
+    def test_connexion_api_error_unparsable_body(self, mock_deconnexion):
+        """A non-JSON body keeps the historical 'impossible to decode' message."""
+        mock_client = MagicMock()
+        mock_client.connect_to_opensilex_ws.side_effect = (
+            self._client_wrapped_api_error("not json at all")
+        )
+
+        with pytest.raises(AuthenticationError) as error_info:
+            connexion({"host": "https://fake.url"}, mock_client)
+
+        assert str(error_info.value).startswith("error is impossible to decode :")
+
+    @patch("simple.auth.deconnexion")
+    def test_connexion_api_error_body_without_message(self, mock_deconnexion):
+        """A JSON body missing result.message is also 'impossible to decode'."""
+        mock_client = MagicMock()
+        mock_client.connect_to_opensilex_ws.side_effect = (
+            self._client_wrapped_api_error('{"result": {}}')
+        )
+
+        with pytest.raises(AuthenticationError) as error_info:
+            connexion({"host": "https://fake.url"}, mock_client)
+
+        assert str(error_info.value).startswith("error is impossible to decode :")
+
+    @patch("simple.auth.deconnexion")
+    def test_connexion_api_error_without_body_keeps_raw_text(self, mock_deconnexion):
+        """No body: fall back to the raw exception text, as before."""
+        mock_client = MagicMock()
+        mock_client.connect_to_opensilex_ws.side_effect = (
+            self._client_wrapped_api_error(None)
+        )
+
+        with pytest.raises(AuthenticationError) as error_info:
+            connexion({"host": "https://fake.url"}, mock_client)
+
+        assert str(error_info.value).startswith("error : User authentication failed :")
+
+    @patch("simple.auth.deconnexion")
+    def test_connexion_direct_api_exception(self, mock_deconnexion):
+        """A direct ApiException (future client) is handled too."""
+        mock_client = MagicMock()
+        api_exc = silex.rest.ApiException(status=401, reason="Unauthorized")
+        api_exc.body = '{"result": {"message": "Invalid credentials provided"}}'
+        mock_client.connect_to_opensilex_ws.side_effect = api_exc
+
+        with pytest.raises(AuthenticationError) as error_info:
+            connexion({"host": "https://fake.url"}, mock_client)
+
+        assert "Invalid credentials provided" in str(error_info.value)
+
+    @patch("simple.auth.deconnexion")
+    def test_connexion_network_error(self, mock_deconnexion):
+        """Network failures are reported with the historical raw-text message."""
+        mock_client = MagicMock()
+        mock_client.connect_to_opensilex_ws.side_effect = (
+            urllib3.exceptions.MaxRetryError(None, "/security/authenticate")
+        )
+
+        with pytest.raises(AuthenticationError) as error_info:
+            connexion({"host": "https://fake.url"}, mock_client)
+
+        assert str(error_info.value).startswith("error : User authentication failed :")
+
     # ==========================================
     # TESTS POUR GET_LOGIN (INTERFACE)
     # ==========================================

@@ -2,6 +2,7 @@ import json
 
 import opensilexClientToolsPython as silex
 import requests
+import urllib3
 
 from simple.erreurs import AuthenticationError, NetworkError
 from simple.systeme_logs import logger
@@ -61,8 +62,6 @@ def deconnexion(silex_API_Client) -> bool:
     "Authorization" header is removed in every case and no exception is raised,
     so callers (e.g. connexion) can proceed regardless of the return value.
     """
-    import urllib3
-
     headers = silex_API_Client.default_headers
     if "Authorization" not in headers:
         return True
@@ -116,6 +115,31 @@ def is_connected(silex_API_Client) -> bool:
     )
 
 
+def _authentication_error_from_api(
+    exc: silex.rest.ApiException,
+) -> AuthenticationError:
+    """Turn an OpenSILEX ``ApiException`` into the historical user message.
+
+    ``ApiException.body`` holds the server response body. When it is JSON with
+    a ``result.message`` field that message is used verbatim; when it cannot
+    be decoded the old "impossible to decode" message is kept. An exception
+    without a body keeps the old raw-text fallback.
+    """
+    error_str = str(exc)
+    if exc.body:
+        try:
+            error_data = json.loads(exc.body)
+            message = (
+                f"User authentication failed :{error_data['result']['message']}"
+            )
+        except (TypeError, ValueError, KeyError, IndexError):
+            message = f"error is impossible to decode :{error_str}"
+    else:
+        message = f"error : User authentication failed :{error_str}"
+    logger.error(message)
+    return AuthenticationError(message)
+
+
 # Connexion et gestion des erreurs de connexion
 def connexion(login, silex_API_Client) -> bool:
     deconnexion(silex_API_Client)
@@ -126,26 +150,27 @@ def connexion(login, silex_API_Client) -> bool:
         logger.info(f"User Sucessfully connected to : {login["host"]}")
         return True
 
-    except Exception as e:
-        error_str = str(e)  # exception sous string
-        try:
-            if "HTTP response body:" in error_str:
-                json_part = error_str.split("HTTP response body:")[
-                    1
-                ].strip()  # on garde seulement le json
-                error_data = json.loads(json_part)
-                logger.error(
-                    f"User authentication failed :{error_data['result']['message']}"
-                )
-                raise AuthenticationError(
-                    f"User authentication failed :{error_data['result']['message']}"
-                )
-            else:
-                logger.error(f"error : User authentication failed :{error_str}")
-                raise AuthenticationError(
-                    f"error : User authentication failed :{error_str}"
-                )
+    except silex.rest.ApiException as e:
+        # Newer client revisions may let the API exception through directly.
+        raise _authentication_error_from_api(e) from e
 
-        except (json.JSONDecodeError, KeyError, IndexError):
-            logger.error(f"error : User authentication failed :{error_str}")
-            raise AuthenticationError(f"error is impossible to decode :{error_str}")
+    except (urllib3.exceptions.HTTPError, OSError) as e:
+        message = f"error : User authentication failed :{e}"
+        logger.error(message)
+        raise AuthenticationError(message) from e
+
+    except Exception as e:
+        # Intentional broad catch, kept because the pinned OpenSILEX client is
+        # quirky: connect_to_opensilex_ws() catches silex.rest.ApiException and
+        # re-raises a plain Exception("Connection to OpenSilex failed: ..."),
+        # keeping the original only as __context__. It also raises a plain
+        # Exception("Identifier not defined") for missing credentials. Unwrap
+        # the original API error when present so the message can use .body.
+        cause = e.__context__
+        if isinstance(cause, silex.rest.ApiException):
+            auth_error = _authentication_error_from_api(cause)
+        else:
+            message = f"error : User authentication failed :{e}"
+            logger.error(message)
+            auth_error = AuthenticationError(message)
+        raise auth_error from e
