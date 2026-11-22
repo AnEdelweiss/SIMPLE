@@ -1,10 +1,7 @@
 import logging
 import sys
-import zipfile
 
-import openpyxl.utils.exceptions
 import opensilexClientToolsPython as silex
-import urllib3
 from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.progress import (
@@ -27,17 +24,9 @@ from simple.auth import (
 )
 from simple.console import console
 from simple.data_import import (
-    create_data,
     create_factor,
     create_germplasm,
     create_sci_obj,
-    data_mapping,
-    get_provenances,
-)
-from simple.datafile_import import (
-    check_for_datafiles,
-    execute_datafiles_upload,
-    get_round_protocol_info,
 )
 from simple.erreurs import (
     AuthenticationError,
@@ -46,6 +35,18 @@ from simple.erreurs import (
     SimpleBaseException,
 )
 from simple.experiment import api_find_experiment_by_name, create_experiment
+from simple.import_service import (
+    PHASE_CHECKING_PROVENANCES,
+    PHASE_CHECKING_VARIABLE_MAP,
+    PHASE_COMPARING_DATAFILES,
+    PHASE_CREATING_PROVENANCES,
+    PHASE_ROUND_PROTOCOL,
+    PHASE_SCIENTIFIC_OBJECTS,
+    PHASE_UPLOADING_DATA,
+    plan_datafiles_import,
+    run_tabular_import,
+    upload_datafiles,
+)
 from simple.systeme_logs import logger
 from simple.ui import (
     BANNER,
@@ -59,20 +60,36 @@ from simple.ui import (
     show_data_table_dictionnaire,
 )
 
-# Errors an import step can realistically raise: API/network failures, file
-# and workbook read errors, bad data, and SIMPLE's own errors (the upload
-# helpers re-authenticate internally, so AuthenticationError lands here).
-IMPORT_STEP_ERRORS = (
-    silex.rest.ApiException,
-    urllib3.exceptions.HTTPError,
-    OSError,
-    KeyError,
-    ValueError,
-    TypeError,
-    zipfile.BadZipFile,
-    openpyxl.utils.exceptions.InvalidFileException,
-    SimpleBaseException,
-)
+# Display mapping for the semantic phases emitted by simple.import_service.
+_IMPORT_STATUS = {
+    PHASE_CHECKING_VARIABLE_MAP: ("[green]Checking variable map...[/green]", "aesthetic"),
+    PHASE_CHECKING_PROVENANCES: ("[green]Checking provenances...[/green]", "aesthetic"),
+    PHASE_CREATING_PROVENANCES: (
+        "[green]Creating default provenances...[/green]",
+        "aesthetic",
+    ),
+    PHASE_SCIENTIFIC_OBJECTS: (
+        "[green]Importing/Searching Scientific objects on OpenSilex instance...[/green]",
+        "aesthetic",
+    ),
+    PHASE_UPLOADING_DATA: (
+        "[green]Uploading data to OpenSilex... This will be quick.[/green]",
+        "aesthetic",
+    ),
+    PHASE_ROUND_PROTOCOL: (
+        "[green]Looking for camera position and plant mask info[/green]",
+        "aesthetic",
+    ),
+    PHASE_COMPARING_DATAFILES: (
+        "Comparing datafile database and tabular data filenames...",
+        "dots",
+    ),
+}
+
+
+def _import_status(phase):
+    message, spinner = _IMPORT_STATUS[phase]
+    return console.status(message, spinner=spinner)
 
 
 def ui_find_experiment(silex_API_Client):
@@ -201,62 +218,41 @@ def ui_import_data(document_data, document_miappe, login, silex_API_Client):
     console.print(
         "[bold green]__________________________Tabular Data Importation__________________________[bold green]"
     )
-    # on apelle data_mapping pour faire le lien noms colonnes données tabulaires -> variables phis
-    with console.status("[green]Checking variable map...[/green]", spinner="aesthetic"):
-        morpho_info = data_mapping(document_data, document_miappe)
-    console.print(
-        f"[cyan]Corresponding data found :[/cyan] [bold green]{list(morpho_info.keys())}[/bold green]"
-    )
-    stop = Prompt.ask(
-        "[bold green]Would you like to import these data?[/bold green]",
-        choices=["y", "n"],
-        default="y",
-    )
-    if stop == "n":
-        raise SimpleBaseException("Data import cancelled by the user.")
 
-    # on s'occupe des provenances et du retour console s'il en manque etc...
-    with console.status("[green]Checking provenances...[/green]", spinner="aesthetic"):
-        prov_dict, datafile_provenance, missing_provs = get_provenances(
-            document_data, document_miappe, silex_API_Client
+    def confirm_data_mapping(morpho_info):
+        console.print(
+            f"[cyan]Corresponding data found :[/cyan] [bold green]{list(morpho_info.keys())}[/bold green]"
         )
-    if missing_provs:
+        return (
+            Prompt.ask(
+                "[bold green]Would you like to import these data?[/bold green]",
+                choices=["y", "n"],
+                default="y",
+            )
+            == "y"
+        )
+
+    def confirm_create_default_provenances(missing_provs):
         console.print(
             f"[bold red]The following provenances were not found : {missing_provs}[/bold red]"
         )
-        create_def = Prompt.ask(
-            "[bold yellow]Do you want to create default ones using these names?\n (It is recommended to create them on your PHIS instance manually and then reference them on the MIAPPE in the 'Data Files' sheet) [/bold yellow]",
-            choices=["y", "n"],
-            default="n",
+        return (
+            Prompt.ask(
+                "[bold yellow]Do you want to create default ones using these names?\n (It is recommended to create them on your PHIS instance manually and then reference them on the MIAPPE in the 'Data Files' sheet) [/bold yellow]",
+                choices=["y", "n"],
+                default="n",
+            )
+            == "y"
         )
 
-        if create_def == "n":
-            raise SimpleBaseException(
-                "Action cancelled. Please edit your MIAPPE file or create provenances manually."
-            )
+    def show_provenances(prov_dict):
+        show_data_table_dictionnaire("Provenances", prov_dict)
+        console.print("[bold green] Provenances are OK !")
 
-        with console.status(
-            "[green]Creating default provenances...[/green]", spinner="aesthetic"
-        ):
-            prov_dict, datafile_provenance, _ = get_provenances(
-                document_data, document_miappe, silex_API_Client, create_default=True
-            )
-    show_data_table_dictionnaire("Provenances", prov_dict)
-    console.print("[bold green] Provenances are OK !")
-
-    # on récupère le dictionnaire d'objets scientifiques
-    with console.status(
-        "[green]Importing/Searching Scientific objects on OpenSilex instance...[/green]",
-        spinner="aesthetic",
-    ):
-        sci_obj_uri, created_sci_obj = create_sci_obj(
-            document_data, document_miappe, silex_API_Client
+    def show_scientific_objects(found_sci_obj, created_sci_obj):
+        console.print(
+            f"[bold green]End of search : {found_sci_obj} found, {created_sci_obj} created. [/bold green]"
         )
-
-    found_sci_obj = len(sci_obj_uri) - created_sci_obj
-    console.print(
-        f"[bold green]End of search : {found_sci_obj} found, {created_sci_obj} created. [/bold green]"
-    )
 
     # on gère l'affichage des progression d'importation de données
     def afficher_progres(nom_variable, nb_lignes):
@@ -270,29 +266,18 @@ def ui_import_data(document_data, document_miappe, login, silex_API_Client):
                 f"[dim white] ↳ Ignored : Data for {nom_variable} were already uploaded.[/dim white]"
             )
 
-    try:
-        with console.status(
-            "[green]Uploading data to OpenSilex... This will be quick.[/green]",
-            spinner="aesthetic",
-        ):
-            create_data(
-                document_data,
-                document_miappe,
-                login,
-                silex_API_Client,
-                morpho_info,
-                prov_dict,
-                datafile_provenance,
-                sci_obj_uri,
-                avancement_upload=afficher_progres,
-            )
-
-    except IMPORT_STEP_ERRORS as e:
-        logger.error(
-            "Import Failed : This is probably because one of the variable you declared in the MIAPPE 'mapping table' sheet was not found on your Phis instance \nPlease check the sheet for typos or check that the variable really exists. "
-        )
-
-        raise SimpleBaseException(f"Error during import : {e}")
+    run_tabular_import(
+        document_data,
+        document_miappe,
+        login,
+        silex_API_Client,
+        confirm_data_mapping=confirm_data_mapping,
+        confirm_create_default_provenances=confirm_create_default_provenances,
+        on_provenances_ready=show_provenances,
+        on_scientific_objects_ready=show_scientific_objects,
+        progress_callback=afficher_progres,
+        status_factory=_import_status,
+    )
 
     console.print("[bold green]Data Import Over![/bold green]")
 
@@ -305,127 +290,103 @@ def ui_import_datafiles(
     )
     # on choisit le dossier photo ici (the function returns (wd, photos))
     _, repertoire_photos = choix_dossier_datafile(wd_experience)
-    # taking care of provenances
-    with console.status("[green]Checking provenances...[/green]", spinner="aesthetic"):
-        prov_dict, datafile_provenance, missing_provs = get_provenances(
-            document_data, document_miappe, silex_API_Client
-        )
-    if missing_provs:
+
+    def confirm_create_default_provenances(missing_provs):
         console.print(
             f"[bold red]The following provenances were not found : {missing_provs}[/bold red]"
         )
-        create_def = Prompt.ask(
-            "[bold yellow]Do you want to create default ones using these names?\n (It is recommended to create them on your PHIS instance manually and then reference them on the MIAPPE in the 'Data Files' sheet) [/bold yellow]",
-            choices=["y", "n"],
-            default="n",
-        )
-
-        if create_def == "n":
-            raise SimpleBaseException(
-                "Action cancelled. Please edit your MIAPPE file or create provenances manually."
-            )
-
-        with console.status(
-            "[green]Creating default provenances...[/green]", spinner="aesthetic"
-        ):
-            prov_dict, datafile_provenance, _ = get_provenances(
-                document_data, document_miappe, silex_API_Client, create_default=True
-            )
-
-    show_data_table_dictionnaire("Provenances", prov_dict)
-    console.print("[bold green] Provenances are OK !")
-
-    # getting scientific object uris etc...
-    with console.status(
-        "[green]Importing/Searching Scientific objects on OpenSilex instance...[/green]",
-        spinner="aesthetic",
-    ):
-        sci_obj_uri, created_sci_obj = create_sci_obj(
-            document_data, document_miappe, silex_API_Client
-        )
-
-    found_sci_obj = len(sci_obj_uri) - created_sci_obj
-    console.print(
-        f"[bold green]End of search : {found_sci_obj} found,{created_sci_obj} created. [/bold green]"
-    )
-
-    # getting cam_pos and plant_mask
-    with console.status(
-        "[green]Looking for camera position and plant mask info[/green]",
-        spinner="aesthetic",
-    ):
-        cam_pos, plant_mask, protocol_found = get_round_protocol_info(
-            wd_experience, document_data
-        )
-
-    if not protocol_found:
-        stop = Prompt.ask(
-            "[cyan][X] PlantMask and Camera Position were not found, do you want to continue?\nThis is not a problem if your instance does not use round protocol info..[/cyan]",
-            choices=["y", "n"],
-            default="y",
-        )
-        if stop == "n":
-            raise SimpleBaseException("User cancelled import at Round protocol phase.")
-    else:
-        console.print(
-            "[bold green][✓] PlantMask and Camera Position Info found ![/bold green]"
-        )
-
-    # on compare les datafiles et ceux données dans les données tabulaires
-    with console.status("Comparing datafile database and tabular data filenames..."):
-        (
-            dict_datafile1,
-            missing_datafile1,
-            dict_datafile2,
-            missing_datafile2,
-            has_datafile2,
-            df_data,
-        ) = check_for_datafiles(document_data, repertoire_photos)
-
-    if missing_datafile1:
-        console.print(
-            f"{len(missing_datafile1)} [red][X] datafiles are missing from the datafile1 database.[/red]"
-        )
-        if (
-            Prompt.ask("Show the missing pictures?", choices=["y", "n"], default="y")
-            == "y"
-        ):
-            console.print(missing_datafile1)
-
-    if missing_datafile2:
-        console.print(
-            f"{len(missing_datafile2)} [red][X] datafiles are missing from the datafile2 database.[/red]"
-        )
-        if (
-            Prompt.ask("Show the missing pictures?", choices=["y", "n"], default="y")
-            == "y"
-        ):
-            console.print(missing_datafile2)
-
-    if missing_datafile1 or missing_datafile2:
-        if (
+        return (
             Prompt.ask(
-                "[red]Continue despite discrepancies ? The import may fail...[/red]",
+                "[bold yellow]Do you want to create default ones using these names?\n (It is recommended to create them on your PHIS instance manually and then reference them on the MIAPPE in the 'Data Files' sheet) [/bold yellow]",
                 choices=["y", "n"],
                 default="n",
             )
-            == "n"
-        ):
-            raise SimpleBaseException(
-                "User cancelled action after database discrepancies were found."
+            == "y"
+        )
+
+    def show_provenances(prov_dict):
+        show_data_table_dictionnaire("Provenances", prov_dict)
+        console.print("[bold green] Provenances are OK !")
+
+    def show_scientific_objects(found_sci_obj, created_sci_obj):
+        console.print(
+            f"[bold green]End of search : {found_sci_obj} found,{created_sci_obj} created. [/bold green]"
+        )
+
+    def confirm_protocol(protocol_found):
+        if not protocol_found:
+            return (
+                Prompt.ask(
+                    "[cyan][X] PlantMask and Camera Position were not found, do you want to continue?\nThis is not a problem if your instance does not use round protocol info..[/cyan]",
+                    choices=["y", "n"],
+                    default="y",
+                )
+                == "y"
             )
-    else:
+        console.print(
+            "[bold green][✓] PlantMask and Camera Position Info found ![/bold green]"
+        )
+        return True
+
+    def confirm_discrepancies(missing_datafile1, missing_datafile2):
+        if missing_datafile1:
+            console.print(
+                f"{len(missing_datafile1)} [red][X] datafiles are missing from the datafile1 database.[/red]"
+            )
+            if (
+                Prompt.ask("Show the missing pictures?", choices=["y", "n"], default="y")
+                == "y"
+            ):
+                console.print(missing_datafile1)
+
+        if missing_datafile2:
+            console.print(
+                f"{len(missing_datafile2)} [red][X] datafiles are missing from the datafile2 database.[/red]"
+            )
+            if (
+                Prompt.ask("Show the missing pictures?", choices=["y", "n"], default="y")
+                == "y"
+            ):
+                console.print(missing_datafile2)
+
+        if missing_datafile1 or missing_datafile2:
+            return (
+                Prompt.ask(
+                    "[red]Continue despite discrepancies ? The import may fail...[/red]",
+                    choices=["y", "n"],
+                    default="n",
+                )
+                == "y"
+            )
         console.print(
             "[green][✓] The datafile database matches the data, we can continue[/green]"
         )
+        return True
 
-    stop = Prompt.ask(
-        "[bold green]Do you want to continue to import datafiles?[/bold green]",
-        choices=["y", "n"],
-        default="y",
+    def confirm_upload():
+        return (
+            Prompt.ask(
+                "[bold green]Do you want to continue to import datafiles?[/bold green]",
+                choices=["y", "n"],
+                default="y",
+            )
+            == "y"
+        )
+
+    plan = plan_datafiles_import(
+        document_miappe,
+        document_data,
+        wd_experience,
+        silex_API_Client,
+        repertoire_photos,
+        confirm_create_default_provenances=confirm_create_default_provenances,
+        confirm_protocol=confirm_protocol,
+        confirm_discrepancies=confirm_discrepancies,
+        confirm_upload=confirm_upload,
+        on_provenances_ready=show_provenances,
+        on_scientific_objects_ready=show_scientific_objects,
+        status_factory=_import_status,
     )
-    if stop == "n":
-        raise SimpleBaseException("User aborted datafile import")
 
     # enfin on téléverse :
 
@@ -453,33 +414,18 @@ def ui_import_datafiles(
             if avance > 0:
                 progress_bar.advance(taches_actives[nom_tache], advance=avance)
 
-        try:
-            execute_datafiles_upload(
-                document_miappe,
-                document_data,
-                df_data,
-                dict_datafile1,
-                dict_datafile2,
-                has_datafile2,
-                prov_dict,
-                datafile_provenance,
-                sci_obj_uri,
-                cam_pos,
-                plant_mask,
-                login,
-                silex_API_Client,
-                status_callback=afficher_statut,
-                progress_callback=gestion_barre,
-            )
-            progress_bar.console.print(
-                "[bold green][✓] Succeeded in importing all datafiles ![/bold green]"
-            )
-
-        except IMPORT_STEP_ERRORS as e:
-            logger.exception(f"Datafile upload failed : {e}")
-            raise SimpleBaseException(
-                "An error occurred during datafile upload. Please see the logs for more information."
-            )
+        upload_datafiles(
+            plan,
+            document_miappe,
+            document_data,
+            login,
+            silex_API_Client,
+            status_callback=afficher_statut,
+            progress_callback=gestion_barre,
+        )
+        progress_bar.console.print(
+            "[bold green][✓] Succeeded in importing all datafiles ![/bold green]"
+        )
 
 
 def main():
