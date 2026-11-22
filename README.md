@@ -44,6 +44,10 @@ link to opensilex project : [opensilex github](https://github.com/OpenSILEX/open
 
 link to opensilex python package : [opensilex github](https://github.com/OpenSILEX/opensilexClientToolsPython )
 
+## Offline check
+
+`uv run simple --dry-run exp_database/dummy_experiment` validates an experiment folder (template sheets, referenced datafiles) without logging in or uploading anything. Exit code is 1 if something is missing.
+
 ## Contributing
 
 This project can always be perfected, contribution are always welcome.
