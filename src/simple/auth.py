@@ -78,7 +78,7 @@ def check_connection_internet():
             logger.info("User has internet !")
             return
         # catching exception
-        except requests.ConnectionError, requests.Timeout:
+        except (requests.ConnectionError, requests.Timeout):
             logger.error("No internet access :/")
             raise NetworkError("No internet access :/")
 
@@ -121,6 +121,6 @@ def connexion(login, silex_API_Client) -> bool:
                     f"error : User authentication failed :{error_str}"
                 )
 
-        except json.JSONDecodeError, KeyError, IndexError:
+        except (json.JSONDecodeError, KeyError, IndexError):
             logger.error(f"error : User authentication failed :{error_str}")
             raise AuthenticationError(f"error is impossible to decode :{error_str}")

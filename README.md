@@ -27,7 +27,7 @@ Please follow the documentation available here : [WIP documentation](https://ane
 
 ## Instructions for developers/contributors: 
 
-This project requires Python 3.14.
+This project requires Python 3.12+.
 
 ```bash
 git clone https://github.com/AnEdelweiss/SIMPLE.git
