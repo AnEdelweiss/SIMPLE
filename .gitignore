@@ -19,4 +19,4 @@ htmlcov
 .ruff_cache
 .pytest_cache
 # Virtual environments
-.venv
+.venv.claude/
