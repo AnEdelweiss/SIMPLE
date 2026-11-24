@@ -10,6 +10,12 @@ def main():
         action="store_true", 
         help="Launch the graphical user interface"
     )
+
+    parser.add_argument(
+        "--gui2",
+        action="store_true",
+        help="Launch the experimental dashboard interface (preview)",
+    )
     
     parser.add_argument(
         "--dry-run",
@@ -33,6 +39,9 @@ def main():
     if args.gui:
         from simple.gui import main as gui_main
         gui_main()
+    elif args.gui2:
+        from simple.gui2 import main as gui2_main
+        raise SystemExit(gui2_main())
     else:
         cli_main()
 

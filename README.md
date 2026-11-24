@@ -35,6 +35,7 @@ cd SIMPLE
 uv sync                # installs the project + dev/test tooling
 uv run simple          # run the CLI
 uv sync --extra gui    # (optional) adds PyQt6, then: uv run simple --gui
+uv run simple --gui2   # (optional) experimental dashboard interface
 ```
 
 You can then use the provided dummy experiment, you can also modify the content of the miappe template to try and create different experiments, germplasms etc...
