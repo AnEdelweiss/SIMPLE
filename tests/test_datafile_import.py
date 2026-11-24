@@ -11,7 +11,7 @@ from simple.datafile_import import (
     execute_datafiles_upload,
     get_round_protocol_info,
 )
-from simple.errors import DataImportError
+from simple.errors import DataImportError, ImportCancelled
 
 
 def _miappe(tmp_path):
@@ -206,6 +206,33 @@ class TestExecuteDatafilesUpload:
             "[bold blue]Uploading datafiles 1...[/bold blue]", advance=1
         )
 
+    @patch("simple.datafile_import.connect")
+    @patch("simple.datafile_import.get_existing_datafiles")
+    @patch("simple.datafile_import.silex.DataApi")
+    @patch("simple.datafile_import.silex.ExperimentsApi")
+    def test_cancelled_worker_skips_upload(
+        self, MockExpApi, MockDataApi, mock_existing, mock_connect, tmp_path
+    ):
+        exp = MagicMock(uri="exp:1")
+        MockExpApi.return_value.search_experiments.return_value = {"result": [exp]}
+        data_api = MockDataApi.return_value
+        mock_existing.return_value = set()
+        data_api.get_data_file_descriptions_by_search.return_value = {"result": []}
+
+        calls = {"n": 0}
+
+        def should_cancel():
+            calls["n"] += 1
+            return calls["n"] > 2
+
+        with pytest.raises(ImportCancelled):
+            execute_datafiles_upload(
+                **_upload_kwargs(tmp_path), should_cancel=should_cancel
+            )
+
+        data_api.post_data_file.assert_not_called()
+
+
 
 class TestGetRoundProtocolInfo:
     def test_reads_utf16_round_files(self, tmp_path):
@@ -267,3 +294,29 @@ class TestCheckForDatafiles:
 
         with pytest.raises(DataImportError):
             check_for_datafiles(str(data), str(tmp_path))
+
+
+def test_execute_datafiles_upload_cancelled_before_reading():
+    with (
+        patch("simple.datafile_import.connect"),
+        patch("simple.datafile_import.pd.read_excel") as mock_read,
+        pytest.raises(ImportCancelled),
+    ):
+        execute_datafiles_upload(
+            "miappe.xlsx",
+            "data.xlsx",
+            None,
+            {},
+            {},
+            False,
+            {},
+            {},
+            {},
+            {},
+            {},
+            "login",
+            "client",
+            should_cancel=lambda: True,
+        )
+
+    mock_read.assert_not_called()

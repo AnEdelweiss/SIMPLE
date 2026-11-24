@@ -18,6 +18,10 @@ class DataImportError(SimpleBaseException):
 
 
 
+class ImportCancelled(SimpleBaseException):
+    """Raised when the user cancels a running import."""
+
+
 class ConfigurationError(SimpleBaseException):
     """Levée quand un fichier ou un dossier attendu est introuvable sur la machine."""
 

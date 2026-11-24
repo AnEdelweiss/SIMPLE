@@ -8,6 +8,7 @@ import urllib3
 
 from simple.__init__ import __version__
 from simple.auth import connect
+from simple.cancellation import check_cancelled
 from simple.errors import DataImportError
 from simple.logging_setup import logger
 from simple.upload import RETRYABLE_ERRORS, UploadSummary, with_retry
@@ -44,7 +45,8 @@ def get_name_space(api_client):
     return name_space_clean, instance_uri
 
 
-def create_factor(miappe_path, api_client):
+def create_factor(miappe_path, api_client, should_cancel=None):
+    check_cancelled(should_cancel)
     # getting experiment name
     dataframe = pd.read_excel(miappe_path, sheet_name="experiment", header=1)
     dataframe.drop(
@@ -72,6 +74,7 @@ def create_factor(miappe_path, api_client):
     factors_data = {}
 
     for row in list(dataframe.to_dict("records")):
+        check_cancelled(should_cancel)
         factor = str(row["name"]).strip() if pd.notna(row["name"]) else ""
         factor_level = str(row["levels"]).strip() if pd.notna(row["levels"]) else None
         description_factor = (
@@ -90,6 +93,7 @@ def create_factor(miappe_path, api_client):
             )
 
     for factor_name, factor_data in factors_data.items():
+        check_cancelled(should_cancel)
         factor_search = factor_api.search_factors(
             name=factor_name, experiment=name_exp_uri[name_exp]
         )["result"]
@@ -117,6 +121,7 @@ def create_factor(miappe_path, api_client):
             factors_uri[factor_name] = factor_search[0].uri
 
     for fac_name,fac_uri in factors_uri.items():
+        check_cancelled(should_cancel)
         fac_get = factor_api.get_factor_levels(uri=fac_uri)["result"]
         logger.info(f"Level : {fac_name}")
         for lvl in fac_get:
@@ -127,8 +132,9 @@ def create_factor(miappe_path, api_client):
     return factors_levels_uri, factors_uri
 
 
-def create_germplasm(miappe_path, api_client):
+def create_germplasm(miappe_path, api_client, should_cancel=None):
 
+    check_cancelled(should_cancel)
     dataframe = pd.read_excel(miappe_path, sheet_name="germplasm", header=1)
     dataframe.drop(
         dataframe.columns[dataframe.columns.str.contains("unnamed", case=False)],
@@ -143,6 +149,7 @@ def create_germplasm(miappe_path, api_client):
     dataframe = dataframe.replace({float("nan"): None})
 
     for row in list(dataframe.to_dict("records")):
+        check_cancelled(should_cancel)
         germ_name = row["name"]
         germ_species = row.get("species")
         rdf_type = str(row["rdf_type"])
@@ -203,8 +210,9 @@ def create_germplasm(miappe_path, api_client):
 
 
 def create_sci_obj(
-    data_path, miappe_path, api_client, status_callback=None
+    data_path, miappe_path, api_client, status_callback=None, should_cancel=None
 ):
+    check_cancelled(should_cancel)
     # Récupération du excel page experiment
     dataframe = pd.read_excel(miappe_path, sheet_name="experiment", header=1)
     dataframe.drop(
@@ -267,7 +275,9 @@ def create_sci_obj(
             for factor_level in factor_result.levels:
                 factors_levels_uri[factor_level.name] = factor_level.uri
     else:
-        factors_levels_uri, _ = create_factor(miappe_path, api_client)
+        factors_levels_uri, _ = create_factor(
+            miappe_path, api_client, should_cancel=should_cancel
+        )
 
     # création des relations
     if start_exp:
@@ -317,6 +327,7 @@ def create_sci_obj(
     sci_obj_cache = {obj.name: obj.uri for obj in all_existing_objs}
     # on envoie pour chaque ligne de la df scobj(sans les duplicatas)
     for row in list(df_sci_obj.to_dict("records")):
+        check_cancelled(should_cancel)
         plant_id = row["Plant ID"]
         if plant_id in sci_obj_cache:
             sci_obj_uri.update({plant_id: sci_obj_cache[plant_id]})
@@ -360,7 +371,9 @@ def create_sci_obj(
                                 "The factor level was not found. Starting factor import from the MIAPPE document"
                             )
                             factors_levels_uri, _ = create_factor(
-                                miappe_path, api_client
+                                miappe_path,
+                                api_client,
+                                should_cancel=should_cancel,
                             )
 
                             if factor_level not in factors_levels_uri:
@@ -549,8 +562,10 @@ def create_data(
     datafile_provenance,
     sci_obj_uri,
     upload_progress=None,
+    should_cancel=None,
 ):
 
+    check_cancelled(should_cancel)
     dataframe = pd.read_excel(miappe_path, sheet_name="experiment", header=1)
     name_exp = dataframe["name"].dropna().iloc[0]
     exp_search = silex.ExperimentsApi(api_client).search_experiments(
@@ -651,6 +666,7 @@ def create_data(
     logfile = {}
     summary = UploadSummary()
     for key, value in morpho_info.items():
+        check_cancelled(should_cancel)
         logfile[value] = []
         column_name = key
         variable_search = variables_api.search_variables(name=value)["result"]
@@ -669,9 +685,12 @@ def create_data(
         # GET/CREATE NUMERICAL DATA
         batch_size = 4000
         for slc in range(0, len(df_data), batch_size):
+            check_cancelled(should_cancel)
             df_slice = df_data.iloc[slc : slc + batch_size]
             bodies = []
-            for row in df_slice.to_dict("records"):
+            for row_index, row in enumerate(df_slice.to_dict("records")):
+                if row_index % 500 == 0:
+                    check_cancelled(should_cancel)
                 target_uri = sci_obj_uri[row["Plant ID"]]
                 formatted_date = str(row["Measuring Time"]).replace("+", ".000+")
                 round_order_val = (
@@ -729,6 +748,7 @@ def create_data(
                         timelimit = datetime.datetime.now() + datetime.timedelta(
                             minutes=30
                         )
+            check_cancelled(should_cancel)
             if bodies:
                 try:
                     with_retry(lambda: data_api.add_list_data(body=bodies))

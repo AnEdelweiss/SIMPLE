@@ -14,7 +14,8 @@ from simple.data_import import (
 )
 
 # Assurez-vous d'importer vos propres modules correctement selon l'arborescence de votre projet
-from simple.errors import DataImportError
+from simple.errors import DataImportError, ImportCancelled
+from simple.experiment import create_experiment
 
 
 class TestDataImport:
@@ -642,3 +643,137 @@ def test_create_data_records_failed_batches(
     assert result.failed_items == ["var_taille batch starting at row 0"]
     assert data_api.add_list_data.call_count == 3
     assert mock_sleep.called
+
+@patch("simple.data_import.connect")
+@patch("simple.data_import.silex.DataApi")
+@patch("simple.data_import.silex.VariablesApi")
+@patch("simple.data_import.silex.ExperimentsApi")
+@patch("simple.data_import.pd.read_excel")
+@patch("simple.data_import.os.path.basename")
+def test_create_data_stops_mid_run(
+    mock_basename,
+    mock_read_excel,
+    MockExpApi,
+    MockVarApi,
+    MockDataApi,
+    mock_connect,
+):
+    df_miappe = pd.DataFrame({"name": ["Exp_Test"]})
+    fake_time = pd.Timestamp("2023-01-01 10:00:00")
+    df_data = pd.DataFrame(
+        {
+            "Plant ID": ["Plant_1", "Plant_2"],
+            "timestamp": [fake_time, fake_time],
+            "Angle": [45, 90],
+            "Round Order": [1, 1],
+            "Taille": [15.5, 20.0],
+            "Hauteur": [3.0, 4.0],
+        }
+    )
+    mock_read_excel.side_effect = [df_miappe, df_data]
+    mock_basename.return_value = "dummy_data.xlsx"
+
+    mock_exp = MagicMock()
+    mock_exp.uri = "http://fake-uri.com/exp/1"
+    MockExpApi.return_value.search_experiments.return_value = {"result": [mock_exp]}
+
+    mock_var = MagicMock()
+    mock_var.uri = "http://fake-uri.com/var/1"
+    MockVarApi.return_value.search_variables.return_value = {"result": [mock_var]}
+
+    data_api = MockDataApi.return_value
+    data_api.search_data_list.return_value = {"result": []}
+    data_api.get_data_file_descriptions_by_search.return_value = {"result": []}
+
+    calls = {"n": 0}
+
+    def should_cancel():
+        calls["n"] += 1
+        return calls["n"] > 5
+
+    with pytest.raises(ImportCancelled):
+        create_data(
+            "dummy_data.xlsx",
+            "dummy_miappe.xlsx",
+            "test_user",
+            MagicMock(),
+            {"Taille": "var_taille", "Hauteur": "var_hauteur"},
+            {"Prov_Test": "http://fake-uri.com/prov/1"},
+            {"dummy_data.xlsx": {"prov_morpho_parameters": "Prov_Test"}},
+            {
+                "Plant_1": "http://fake-uri.com/so/1",
+                "Plant_2": "http://fake-uri.com/so/2",
+            },
+            should_cancel=should_cancel,
+        )
+
+    # The first variable was uploaded; the second one was stopped.
+    assert data_api.add_list_data.call_count == 1
+
+def test_create_data_cancelled_before_reading_files():
+    with pytest.raises(ImportCancelled):
+        create_data(
+            "missing_data.xlsx",
+            "missing_miappe.xlsx",
+            {},
+            MagicMock(),
+            {},
+            {},
+            {},
+            {},
+            should_cancel=lambda: True,
+        )
+
+
+@patch("simple.experiment.pd.read_excel")
+def test_create_experiment_cancelled_before_reading(mock_read_excel):
+    with pytest.raises(ImportCancelled):
+        create_experiment("m.xlsx", MagicMock(), should_cancel=lambda: True)
+
+    mock_read_excel.assert_not_called()
+
+
+@patch("simple.data_import.pd.read_excel")
+def test_create_factor_cancelled_before_reading(mock_read_excel):
+    with pytest.raises(ImportCancelled):
+        create_factor("m.xlsx", MagicMock(), should_cancel=lambda: True)
+
+    mock_read_excel.assert_not_called()
+
+
+@patch("simple.data_import.pd.read_excel")
+def test_create_germplasm_cancelled_before_reading(mock_read_excel):
+    with pytest.raises(ImportCancelled):
+        create_germplasm("m.xlsx", MagicMock(), should_cancel=lambda: True)
+
+    mock_read_excel.assert_not_called()
+
+
+@patch("simple.data_import.pd.read_excel")
+def test_create_sci_obj_cancelled_before_reading(mock_read_excel):
+    with pytest.raises(ImportCancelled):
+        create_sci_obj("d.xlsx", "m.xlsx", MagicMock(), should_cancel=lambda: True)
+
+    mock_read_excel.assert_not_called()
+
+
+@patch("simple.data_import.pd.read_excel")
+@patch("simple.data_import.silex.GermplasmApi")
+def test_create_germplasm_cancels_between_rows(MockGermplasmApi, mock_read_excel):
+    mock_read_excel.return_value = pd.DataFrame(
+        {
+            "name": ["Zea mays", "Apache"],
+            "species": [None, "Zea mays"],
+            "rdf_type": ["vocabulary:Species", "vocabulary:Variety"],
+        }
+    )
+    calls = {"n": 0}
+
+    def should_cancel():
+        calls["n"] += 1
+        return calls["n"] > 1
+
+    with pytest.raises(ImportCancelled):
+        create_germplasm("m.xlsx", MagicMock(), should_cancel=should_cancel)
+
+    MockGermplasmApi.return_value.search_germplasm.assert_not_called()

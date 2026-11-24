@@ -1,6 +1,7 @@
 import opensilexClientToolsPython as silex
 import pandas as pd
 
+from simple.cancellation import check_cancelled
 from simple.errors import DataImportError
 from simple.logging_setup import logger
 
@@ -16,8 +17,11 @@ def api_find_experiment_by_name(api_client, name_exp):
     return exp_data["result"]
 
 
-def create_experiment(miappe_path, api_client, status_callback=None):
+def create_experiment(
+    miappe_path, api_client, status_callback=None, should_cancel=None
+):
 
+    check_cancelled(should_cancel)
     dataframe = pd.read_excel(miappe_path, sheet_name="experiment", header=1)
     dataframe.drop(
         dataframe.columns[dataframe.columns.str.contains("unnamed", case=False)],
@@ -37,6 +41,7 @@ def create_experiment(miappe_path, api_client, status_callback=None):
 
     name_to_uri = {}
     for row_dict in records:
+        check_cancelled(should_cancel)
         name_to_uri = {}
 
         # Fonction pour split, strip et retourner un truc vide si la case est vide

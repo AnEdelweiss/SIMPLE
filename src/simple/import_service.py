@@ -30,7 +30,7 @@ from simple.datafile_import import (
     execute_datafiles_upload,
     get_round_protocol_info,
 )
-from simple.errors import SimpleBaseException
+from simple.errors import ImportCancelled, SimpleBaseException
 from simple.logging_setup import logger
 from simple.upload import UploadSummary
 
@@ -151,6 +151,7 @@ def run_tabular_import(
     status_factory=None,
     provenances=None,
     sci_obj=None,
+    should_cancel=None,
 ):
     """Validate inputs and upload tabular data.
 
@@ -180,7 +181,10 @@ def run_tabular_import(
     if sci_obj is None:
         with _status(status_factory, PHASE_SCIENTIFIC_OBJECTS):
             sci_obj_uri, created_sci_obj = create_sci_obj(
-                data_path, miappe_path, api_client
+                data_path,
+                miappe_path,
+                api_client,
+                should_cancel=should_cancel,
             )
     else:
         sci_obj_uri, created_sci_obj = sci_obj
@@ -202,7 +206,10 @@ def run_tabular_import(
                 datafile_provenance,
                 sci_obj_uri,
                 upload_progress=progress_callback,
+                should_cancel=should_cancel,
             )
+    except ImportCancelled:
+        raise
     except IMPORT_STEP_ERRORS as e:
         logger.error(DATA_IMPORT_FAILED_MESSAGE)
         raise SimpleBaseException(f"Error during import : {e}")
@@ -234,6 +241,7 @@ def plan_datafiles_import(
     status_factory=None,
     provenances=None,
     sci_obj=None,
+    should_cancel=None,
 ):
     """Validate everything needed before uploading datafiles.
 
@@ -259,7 +267,10 @@ def plan_datafiles_import(
     if sci_obj is None:
         with _status(status_factory, PHASE_SCIENTIFIC_OBJECTS):
             sci_obj_uri, created_sci_obj = create_sci_obj(
-                data_path, miappe_path, api_client
+                data_path,
+                miappe_path,
+                api_client,
+                should_cancel=should_cancel,
             )
     else:
         sci_obj_uri, created_sci_obj = sci_obj
@@ -323,6 +334,7 @@ def upload_datafiles(
     status_callback=None,
     progress_callback=None,
     wrap_errors=True,
+    should_cancel=None,
 ):
     """Upload the datafiles described by a :func:`plan_datafiles_import` plan.
 
@@ -345,7 +357,10 @@ def upload_datafiles(
             api_client,
             status_callback=status_callback,
             progress_callback=progress_callback,
+            should_cancel=should_cancel,
         )
+    except ImportCancelled:
+        raise
     except IMPORT_STEP_ERRORS as e:
         if not wrap_errors:
             # The GUI shows the original exception in its error dialog.
@@ -378,6 +393,7 @@ def run_datafiles_import(
     provenances=None,
     sci_obj=None,
     wrap_errors=True,
+    should_cancel=None,
 ):
     """Plan then upload datafiles in one call (used by the GUI)."""
     plan = plan_datafiles_import(
@@ -396,6 +412,7 @@ def run_datafiles_import(
         status_factory=status_factory,
         provenances=provenances,
         sci_obj=sci_obj,
+        should_cancel=should_cancel,
     )
     return upload_datafiles(
         plan,
@@ -406,4 +423,5 @@ def run_datafiles_import(
         status_callback=status_callback,
         progress_callback=progress_callback,
         wrap_errors=wrap_errors,
+        should_cancel=should_cancel,
     )

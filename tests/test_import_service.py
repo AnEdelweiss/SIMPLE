@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import opensilexClientToolsPython as silex
 import pytest
 
-from simple.errors import SimpleBaseException
+from simple.errors import ImportCancelled, SimpleBaseException
 from simple.import_service import (
     PHASE_CHECKING_PROVENANCES,
     PHASE_CHECKING_VARIABLE_MAP,
@@ -111,6 +111,7 @@ class TestRunTabularImport:
             {"d.csv": {}},
             {"P1": "so:1", "P2": "so:2"},
             upload_progress=progress,
+            should_cancel=None,
         )
 
     @patch("simple.import_service.create_data")
@@ -427,6 +428,7 @@ class TestUploadDatafiles:
             "client",
             status_callback=status,
             progress_callback=progress,
+            should_cancel=None,
         )
 
         assert returned is mock_execute.return_value
@@ -446,6 +448,7 @@ class TestUploadDatafiles:
             "client",
             status_callback=status,
             progress_callback=progress,
+            should_cancel=None,
         )
 
     @patch("simple.import_service.execute_datafiles_upload")
@@ -497,4 +500,100 @@ class TestUploadDatafiles:
             status_callback=None,
             progress_callback=None,
             wrap_errors=True,
+            should_cancel=None,
         )
+
+
+def test_upload_datafiles_forwards_should_cancel():
+    def token():
+        return False
+
+    with patch("simple.import_service.execute_datafiles_upload") as mock_execute:
+        upload_datafiles(
+            MagicMock(), "m", "d", "login", "client", should_cancel=token
+        )
+
+    assert mock_execute.call_args.kwargs["should_cancel"] is token
+
+
+def test_upload_datafiles_propagates_cancellation():
+    with patch("simple.import_service.execute_datafiles_upload") as mock_execute:
+        mock_execute.side_effect = ImportCancelled("stopped")
+
+        with pytest.raises(ImportCancelled):
+            upload_datafiles(MagicMock(), "m", "d", "login", "client")
+
+
+def test_tabular_import_forwards_should_cancel():
+    def token():
+        return False
+
+    with (
+        patch("simple.import_service.data_mapping", return_value={"col": "var"}),
+        patch(
+            "simple.import_service._resolve_provenances",
+            return_value=({}, {}, set()),
+        ),
+        patch("simple.import_service.create_sci_obj", return_value=({}, 0)),
+        patch("simple.import_service.create_data") as mock_create,
+    ):
+        run_tabular_import(
+            "d",
+            "m",
+            "login",
+            "client",
+            confirm_data_mapping=always(True),
+            confirm_create_default_provenances=always(True),
+            should_cancel=token,
+        )
+
+    assert mock_create.call_args.kwargs["should_cancel"] is token
+
+
+def test_tabular_import_propagates_cancellation():
+    with (
+        patch("simple.import_service.data_mapping", return_value={"col": "var"}),
+        patch(
+            "simple.import_service._resolve_provenances",
+            return_value=({}, {}, set()),
+        ),
+        patch("simple.import_service.create_sci_obj", return_value=({}, 0)),
+        patch(
+            "simple.import_service.create_data",
+            side_effect=ImportCancelled("stopped"),
+        ),
+        pytest.raises(ImportCancelled),
+    ):
+        run_tabular_import(
+            "d",
+            "m",
+            "login",
+            "client",
+            confirm_data_mapping=always(True),
+            confirm_create_default_provenances=always(True),
+        )
+
+
+def test_run_datafiles_import_forwards_should_cancel():
+    def token():
+        return False
+
+    with (
+        patch("simple.import_service.plan_datafiles_import", return_value=object()),
+        patch("simple.import_service.upload_datafiles") as mock_upload,
+    ):
+        run_datafiles_import(
+            "m",
+            "d",
+            "wd",
+            "login",
+            "client",
+            "photos",
+            confirm_create_default_provenances=always(True),
+            confirm_protocol=always(True),
+            confirm_discrepancies=always(True),
+            confirm_upload=always(True),
+            should_cancel=token,
+        )
+
+    assert mock_upload.call_args.kwargs["should_cancel"] is token

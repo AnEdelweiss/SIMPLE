@@ -10,8 +10,9 @@ from lxml import etree as ET
 
 from simple.__init__ import __version__
 from simple.auth import connect
+from simple.cancellation import check_cancelled
 from simple.data_import import find_datafile_config, format_timestamps
-from simple.errors import DataImportError, SimpleBaseException
+from simple.errors import DataImportError, ImportCancelled, SimpleBaseException
 from simple.logging_setup import logger
 from simple.upload import UploadSummary, with_retry
 
@@ -225,9 +226,11 @@ def execute_datafiles_upload(
     api_client,
     status_callback=None,
     progress_callback=None,
+    should_cancel=None,
 ):
 
     connect(login, api_client)
+    check_cancelled(should_cancel)
     dataframe = pd.read_excel(miappe_path, sheet_name="experiment", header=1)
     dataframe.drop(
         dataframe.columns[dataframe.columns.str.contains("unnamed", case=False)],
@@ -355,6 +358,7 @@ def execute_datafiles_upload(
     timelimit = datetime.datetime.now() + datetime.timedelta(minutes=30)
 
     def process_datafile1(img):
+        check_cancelled(should_cancel)
         path_or_post = 0
         round_order = img.get("Round Order")
         cam_pos_round = cam_pos.get(round_order, {})
@@ -413,6 +417,7 @@ def execute_datafiles_upload(
     if progress_callback and len(corr_to_upload) > 0:
         progress_callback(datafile1_task_name, total=len(corr_to_upload))
 
+    check_cancelled(should_cancel)
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         futures = {
             executor.submit(process_datafile1, img): img for img in corr_to_upload
@@ -425,6 +430,10 @@ def execute_datafiles_upload(
             try:
                 future.result()
                 summary.created += 1
+            except ImportCancelled:
+                for pending in futures:
+                    pending.cancel()
+                raise
             except DATAFILE_UPLOAD_ERRORS as e:
                 summary.failed += 1
                 summary.failed_items.append(futures[future]["Path"])
@@ -524,6 +533,7 @@ def execute_datafiles_upload(
         )
 
         def process_datafile2(img):
+            check_cancelled(should_cancel)
             round_order = img.get("Round Order")
             settings = {"Camera Angle": img.get("Angle")}
             if round_order in plant_mask:
@@ -562,6 +572,7 @@ def execute_datafiles_upload(
         if progress_callback and len(mask_to_upload) > 0:
             progress_callback(datafile2_task_name, total=len(mask_to_upload))
 
+        check_cancelled(should_cancel)
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             futures = {
                 executor.submit(process_datafile2, img): img for img in mask_to_upload
@@ -573,6 +584,10 @@ def execute_datafiles_upload(
                 try:
                     future.result()
                     summary.created += 1
+                except ImportCancelled:
+                    for pending in futures:
+                        pending.cancel()
+                    raise
                 except DATAFILE_UPLOAD_ERRORS as e:
                     summary.failed += 1
                     summary.failed_items.append(futures[future]["Path"])
