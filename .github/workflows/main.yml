@@ -35,6 +35,11 @@ jobs:
         run: uv run coverage run -m pytest -q
       - name: Enforce coverage threshold
         run: uv run coverage report --fail-under=65
+      - name: GUI smoke test (offscreen)
+        if: matrix.python-version == '3.12'
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run --extra gui pytest -q tests/test_gui2_runner.py
 
   build:
     if: github.event_name == 'workflow_dispatch'
