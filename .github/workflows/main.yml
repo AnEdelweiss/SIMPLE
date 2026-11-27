@@ -39,7 +39,7 @@ jobs:
         if: matrix.python-version == '3.12'
         env:
           QT_QPA_PLATFORM: offscreen
-        run: uv run --extra gui pytest -q tests/test_gui2_runner.py
+        run: uv run --extra gui pytest -q tests/test_gui_runner.py
 
   build:
     if: github.event_name == 'workflow_dispatch'

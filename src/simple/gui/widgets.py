@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from simple.gui2.theme import (
+from simple.gui.theme import (
     AMBER,
     AMBER_BG,
     BORDER,
@@ -392,7 +392,7 @@ class LogDialog(QDialog):
 
     def _save(self, view):
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save log", "simple-gui2.log", "Log files (*.log *.txt)"
+            self, "Save log", "simple.log", "Log files (*.log *.txt)"
         )
         if path:
             with open(path, "w", encoding="utf-8") as handle:

@@ -1,4 +1,5 @@
 import argparse
+import sys
 
 from simple.cli import main as cli_main
 
@@ -6,17 +7,17 @@ from simple.cli import main as cli_main
 def main():
     parser = argparse.ArgumentParser(description="SIMPLE - Scientific data import tool")
     parser.add_argument(
-        "--gui", 
-        action="store_true", 
-        help="Launch the graphical user interface"
+        "--gui",
+        action="store_true",
+        help="Launch the graphical user interface",
     )
 
     parser.add_argument(
         "--gui2",
         action="store_true",
-        help="Launch the experimental dashboard interface (preview)",
+        help=argparse.SUPPRESS,
     )
-    
+
     parser.add_argument(
         "--dry-run",
         metavar="FOLDER",
@@ -36,14 +37,19 @@ def main():
             raise SystemExit(f"Dry run failed: {e}")
         print("\n".join(lines))
         raise SystemExit(0 if ok else 1)
-    if args.gui:
+
+    if args.gui or args.gui2:
+        if args.gui2 and not args.gui:
+            print(
+                "warning: --gui2 is deprecated and is now an alias for --gui",
+                file=sys.stderr,
+            )
         from simple.gui import main as gui_main
-        gui_main()
-    elif args.gui2:
-        from simple.gui2 import main as gui2_main
-        raise SystemExit(gui2_main())
-    else:
-        cli_main()
+
+        raise SystemExit(gui_main())
+
+    cli_main()
+
 
 if __name__ == "__main__":
     main()

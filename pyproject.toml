@@ -51,10 +51,8 @@ omit = [
     "*/__main__.py",
     "*/console.py",
     # The GUI needs the optional PyQt6 extra, which `uv sync` (and the CI
-    # test job) does not install, so it can never be exercised there.
-    "*/gui.py",
-    # Same for the experimental dashboard GUI (preview).
-    "*/gui2/*",
+    # test job) does not install by default, so it is not covered there.
+    "*/gui/*",
 ]
 
 [tool.coverage.report]

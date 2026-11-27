@@ -1,4 +1,4 @@
-"""Visual constants and stylesheet for the experimental dashboard GUI."""
+"""Visual constants and stylesheet for the SIMPLE GUI."""
 
 GREEN = "#2e7d4f"
 GREEN_DARK = "#256b43"

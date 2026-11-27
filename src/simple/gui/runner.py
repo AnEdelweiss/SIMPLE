@@ -17,7 +17,7 @@ from simple.data_import import (
 )
 from simple.errors import ImportCancelled
 from simple.experiment import create_experiment
-from simple.gui2.widgets import clean_rich
+from simple.gui.widgets import clean_rich
 from simple.import_service import (
     plan_datafiles_import,
     run_tabular_import,

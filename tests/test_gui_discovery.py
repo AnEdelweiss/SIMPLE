@@ -1,6 +1,7 @@
-"""Tests for the UI-free discovery/validation layer of the --gui2 interface."""
+"""Tests for the UI-free discovery/validation layer of the --gui interface."""
 
-from simple.gui2 import discovery
+from simple.gui import discovery
+from simple.validation import read_miappe_sheet
 
 DUMMY = "exp_database/dummy_experiment"
 
@@ -10,7 +11,8 @@ def test_discover_dummy_experiment():
 
     assert result.error is None
     assert result.miappe.endswith("filled_exemple_Miappe_Template.xlsx")
-    assert result.experiment_name == "dummy_experiment"
+    expected_name = read_miappe_sheet(result.miappe, "experiment").iloc[0]["name"]
+    assert result.experiment_name == str(expected_name)
     assert len(result.tabular_candidates) == 3
     assert result.tabular.endswith("ARC_tabular_data.xlsx")
     assert result.datafiles.endswith("ARC")

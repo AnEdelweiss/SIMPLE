@@ -1,4 +1,4 @@
-"""Dashboard-style experimental GUI for SIMPLE (launched with ``--gui2``)."""
+"""Graphical interface for SIMPLE (launched with ``simple --gui``)."""
 
 import os
 import sys
@@ -27,10 +27,10 @@ from PyQt6.QtWidgets import (
 
 from simple import __version__
 from simple.auth import INSTANCES, SANDBOX_URL, connect
-from simple.gui2 import discovery
-from simple.gui2.runner import ImportThread, TaskThread, phase_keys
-from simple.gui2.theme import QSS
-from simple.gui2.widgets import (
+from simple.gui import discovery
+from simple.gui.runner import ImportThread, TaskThread, phase_keys
+from simple.gui.theme import QSS
+from simple.gui.widgets import (
     Card,
     CheckRow,
     FileRow,
@@ -1183,7 +1183,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1000, 720)
         self.resize(1180, 820)
 
-        self.settings = QSettings("SIMPLE", "simple-gui2")
+        self.settings = QSettings("SIMPLE", "simple-gui")
         self.session = Session(api_client=silex.ApiClient(verbose=False))
         self._busy = False
         self._threads = []

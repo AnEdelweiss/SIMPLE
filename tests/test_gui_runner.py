@@ -1,4 +1,4 @@
-"""Qt-level cancellation test for the --gui2 import worker.
+"""Qt-level cancellation test for the --gui import worker.
 
 Skipped when the optional PyQt6 extra is not installed (as in CI).
 """
@@ -27,7 +27,7 @@ def test_import_thread_cancels_mid_phase():
     pytest.importorskip("PyQt6")
     from PyQt6.QtCore import QCoreApplication
 
-    from simple.gui2.runner import ImportThread
+    from simple.gui.runner import ImportThread
 
     app = QCoreApplication.instance() or QCoreApplication([])
     state = {"in_tabular": False, "cancelled": False, "finished": False}
@@ -52,11 +52,11 @@ def test_import_thread_cancels_mid_phase():
     )
 
     with (
-        patch("simple.gui2.runner.create_experiment", return_value={"e": "u"}),
-        patch("simple.gui2.runner.create_germplasm", return_value=({}, {})),
-        patch("simple.gui2.runner.create_factor", return_value=({}, {})),
-        patch("simple.gui2.runner.create_sci_obj", return_value=({}, 0)),
-        patch("simple.gui2.runner.run_tabular_import", side_effect=slow_tabular),
+        patch("simple.gui.runner.create_experiment", return_value={"e": "u"}),
+        patch("simple.gui.runner.create_germplasm", return_value=({}, {})),
+        patch("simple.gui.runner.create_factor", return_value=({}, {})),
+        patch("simple.gui.runner.create_sci_obj", return_value=({}, 0)),
+        patch("simple.gui.runner.run_tabular_import", side_effect=slow_tabular),
     ):
         thread = ImportThread(session, has_datafiles=False)
         thread.cancelled.connect(lambda: state.__setitem__("cancelled", True))
