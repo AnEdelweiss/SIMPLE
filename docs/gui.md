@@ -2,7 +2,8 @@
 title: Importing data with the GUI
 nav_order: 6
 ---
-
+{: .warning }
+This GUI was made using generative A.I
 # Importing data with the GUI
 
 ![Review and import](GUI_images/GUI_review.png)
