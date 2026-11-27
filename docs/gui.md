@@ -3,27 +3,95 @@ title: Importing data with the GUI
 nav_order: 6
 ---
 
-{: .warning-title}
-> Experimental feature
->
-> The GUI is still experimental and many safeguards are not yet implemented.
->
-> Make sure to experiment on the sandbox before trying to upload data on your instance.
-
 # Importing data with the GUI
 
-![GUI1](GUI_images/GUI1.png)
+![Review and import](GUI_images/GUI_review.png)
 
-Using the GUI is supposed to be more straightforward than the CLI. 
-Please follow the same workflow as can be seen here : [Using the CLI]({% link cli.md %}).
+The GUI follows the same import order as the CLI, but discovers the files for
+you, checks them offline, and shows what will be uploaded before anything is
+sent.
 
-Steps should be roughly the same, only the user interface changes : 
+## Before you start
 
-- Log in. 
-- Click '__Import Data__'
-- Chose your __EXPERIMENT__ (not database) folder.
-- Chose your MIAPPE file.
-- Chose your tabular data file.
-- Press '__run all imports__' 
+Fill the MIAPPE template, organise the experiment folder, and format the
+tabular data:
 
-If you want to change the experiment, the tabular data or anything else, just close the window (escape) and click on '__Reset Working Directory__', then select again.
+- [Fill the MIAPPE template]({% link miappe/miappe_file.md %})
+- [Organise the experiment folder]({% link experiment_folder.md %})
+- [Format the tabular data]({% link tabular_data.md %})
+
+## Launching the GUI
+
+```bash
+uv sync --extra gui
+uv run simple --gui
+```
+
+The GUI needs the optional `gui` extra (PyQt6). If you use an installed
+release, `simple --gui` is enough. `--gui2` still works as an alias.
+
+## Steps
+
+### 1. Connect
+
+Choose your instance in the list, or pick **Custom URL…** and paste the REST
+URL. On the Sandbox the guest account is selected automatically. Your
+identifier and password are only sent to that instance.
+
+### 2. Choose the experiment folder
+
+Pick the folder that contains the filled MIAPPE template, the tabular data and
+the datafiles. SIMPLE looks inside and proposes:
+
+- the MIAPPE template (`*miappe*.xlsx`),
+- the tabular data (`*_tabular_data.xlsx`),
+- the datafiles folder, chosen as the subfolder containing the files referenced
+  by the tabular data.
+
+If several candidates exist, pick the right one in the lists.
+
+### 3. Confirm the files
+
+Every path is visible on one screen and can be changed individually. Nothing
+has to be reset to switch the MIAPPE template, the tabular data or the
+datafiles.
+
+### 4. Validate
+
+SIMPLE checks the template and the files without logging in or uploading
+anything:
+
+- required MIAPPE sheets, columns and first-row values,
+- readable tabular data and its row count,
+- referenced datafiles present on disk.
+
+Errors block the import. Warnings (for example a few missing datafiles) are
+listed, and the affected items are skipped.
+
+### 5. Review and import
+
+The review screen shows the counts that will be created and the preflight
+result. Press **Run import** to start.
+
+![Import in progress](GUI_images/GUI_running.png)
+
+The import runs in this order: experiment, germplasm, factors, scientific
+objects, datafiles, tabular data. Each step is marked as it completes, and the
+activity log shows the latest events.
+
+## Cancelling an import
+
+**Cancel import** stops after the item (or tabular batch) currently being
+uploaded. Items already created stay on the instance; running the import again
+is safe because existing items are found rather than duplicated.
+
+## Logs
+
+Use **View full log** in the import screen, or **Open log folder** in the
+sidebar. The same log file is written by the CLI.
+
+## Troubleshooting
+
+Most errors come from typos in the MIAPPE file or from data that does not match
+the template. Read the error shown on the Validate screen first, then the log.
+See [troubleshooting]({% link issues.md %}) for common cases.

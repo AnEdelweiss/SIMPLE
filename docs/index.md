@@ -42,16 +42,10 @@ Simple, just follow the instructions :
 
     - [Download SIMPLE](https://github.com/AnEdelweiss/SIMPLE/releases){: .btn .btn-green }
 
-    Then, you can chose the user interface : 
-    >{: .new-title}
-    > > Recommended 
-    > >
-    > > [Get help uploading your experiment (CLI) ]({% link cli.md %})
+    Then choose your interface:
 
-    >{: .highlight-title}
-    > > Experimental
-    > >
-    > >[Get help uploading your experiment (GUI) ]({% link gui.md %})
+    - [Import data with the CLI]({% link cli.md %})
+    - [Import data with the GUI]({% link gui.md %})
 
     
 1. ### Look at how nice your experiment looks on your PHIS instance ! :)

@@ -15,7 +15,7 @@ or here : [asciinema link](https://asciinema.org/a/vgznnODoenqWjDki)
 
 ## Description.
 
-In the context of my internship, I am working on SIMPLE, a Command Line Interface (and an alternative GUI) coded in python with a focus on ease of use, rapidity and flexibility. This tool has been designed to help researchers upload MIAPPE compliant phenotyping data on OpenSilex Phis instances with minimal efforts : filling a MIAPPE template. Allowing them to keep germplasm banks up to date, create experiments, add scientific objects to an experiment, add pictures, tabular data and more !
+In the context of my internship, I am working on SIMPLE, a Command Line Interface and a graphical interface coded in python with a focus on ease of use, rapidity and flexibility. This tool has been designed to help researchers upload MIAPPE compliant phenotyping data on OpenSilex Phis instances with minimal efforts : filling a MIAPPE template. Allowing them to keep germplasm banks up to date, create experiments, add scientific objects to an experiment, add pictures, tabular data and more !
 
 All this with a thorough [documentation](https://anedelweiss.github.io/SIMPLE/) to make the process as easy as possible !
 
@@ -34,8 +34,8 @@ git clone https://github.com/AnEdelweiss/SIMPLE.git
 cd SIMPLE
 uv sync                # installs the project + dev/test tooling
 uv run simple          # run the CLI
-uv sync --extra gui    # (optional) adds PyQt6, then: uv run simple --gui
-uv run simple --gui2   # (optional) experimental dashboard interface
+uv sync --extra gui    # adds PyQt6 (required for the GUI)
+uv run simple --gui    # run the GUI
 ```
 
 You can then use the provided dummy experiment, you can also modify the content of the miappe template to try and create different experiments, germplasms etc...
