@@ -29,6 +29,7 @@ from simple import __version__
 from simple.auth import INSTANCES, SANDBOX_URL, connect
 from simple.gui import discovery
 from simple.gui.runner import ImportThread, TaskThread, phase_keys
+from simple.gui.text import clean_rich
 from simple.gui.theme import QSS
 from simple.gui.widgets import (
     Card,
@@ -39,7 +40,6 @@ from simple.gui.widgets import (
     MetricTile,
     Pill,
     Sidebar,
-    clean_rich,
     label,
 )
 

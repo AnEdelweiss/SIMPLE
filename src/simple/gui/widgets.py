@@ -1,7 +1,5 @@
 """Reusable widgets for the dashboard GUI."""
 
-import re
-
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QTextCursor
 from PyQt6.QtWidgets import (
@@ -16,6 +14,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from simple.gui.text import clean_rich
 from simple.gui.theme import (
     AMBER,
     AMBER_BG,
@@ -29,21 +28,12 @@ from simple.gui.theme import (
     TEXT,
 )
 
-RICH_TAGS = re.compile(
-    r"\[/?(?:bold\s)?(?:green|red|cyan|yellow|blue|magenta|white)\]"
-)
-
 LEVEL_COLORS = {
     "ok": GREEN,
     "info": MUTED,
     "warn": AMBER,
     "error": RED,
 }
-
-
-def clean_rich(text):
-    """Strip the Rich markup the CLI-oriented backend adds to its messages."""
-    return RICH_TAGS.sub("", str(text))
 
 
 def label(text, name=None, wrap=False):

@@ -23,6 +23,26 @@ def _spin(app, predicate, timeout=8):
     return False
 
 
+def test_runner_imports_without_qt_gui():
+    """Importing the worker must not pull QtGui (CI has no libEGL)."""
+    pytest.importorskip("PyQt6")
+    import subprocess
+    import sys
+
+    code = (
+        "import sys; import simple.gui.runner; "
+        "print('PyQt6.QtGui' in sys.modules)"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert result.stdout.strip() == "False"
+
+
 def test_import_thread_cancels_mid_phase():
     pytest.importorskip("PyQt6")
     from PyQt6.QtCore import QCoreApplication
