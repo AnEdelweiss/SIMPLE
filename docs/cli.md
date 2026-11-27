@@ -8,7 +8,20 @@ nav_order: 5
 ![CLI1](CLI_images/CLI1.png)
 
 {: .highlight}
-The following steps are to follow only after you filled your miappe template and organized your folder accordingly, please refer to the [index]({% link tabular_data.md %}).
+The following steps are to follow only after you filled your miappe template and organised your folder accordingly, please refer to the [index]({% link index.md %}).
+
+## Launching the CLI
+
+Download the release for your system from the
+[releases page](https://github.com/AnEdelweiss/SIMPLE/releases) and open the
+command-line application:
+
+- **Windows:** `SIMPLE.exe` — double-click it; a console window opens.
+- **Linux:** `SIMPLE-linux` — allow it to run as a program if your system asks,
+  then open it in a terminal.
+
+The same download also contains the graphical version (`SIMPLE-gui.exe` or
+`SIMPLE-gui-linux`).
 
 ## Steps  :
 

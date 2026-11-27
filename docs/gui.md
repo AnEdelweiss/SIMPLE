@@ -22,13 +22,16 @@ tabular data:
 
 ## Launching the GUI
 
-```bash
-uv sync --extra gui
-uv run simple --gui
-```
+Download the release for your system from the
+[releases page](https://github.com/AnEdelweiss/SIMPLE/releases) and open the
+GUI application it contains:
 
-The GUI needs the optional `gui` extra (PyQt6). If you use an installed
-release, `simple --gui` is enough. `--gui2` still works as an alias.
+- **Windows:** `SIMPLE-gui.exe` — double-click it.
+- **Linux:** `SIMPLE-gui-linux` — allow it to run as a program if your system
+  asks, then open it.
+
+The same download also contains the command-line version (`SIMPLE.exe` or
+`SIMPLE-linux`). Nothing else needs to be installed.
 
 ## Steps
 
